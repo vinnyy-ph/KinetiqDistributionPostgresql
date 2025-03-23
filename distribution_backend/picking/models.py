@@ -14,7 +14,7 @@ class PickingList(models.Model):
     picked_by = models.CharField(max_length=255, blank=True, null=True)
     picked_status = models.TextField(blank=True, null=True)  # This field type is a guess.
     picked_date = models.DateField(blank=True, null=True)
-    approval_request = models.ForeignKey('LogisticsApprovalRequest', models.DO_NOTHING, blank=True, null=True)
+    approval_request = models.ForeignKey('delivery.LogisticsApprovalRequest', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         managed = False

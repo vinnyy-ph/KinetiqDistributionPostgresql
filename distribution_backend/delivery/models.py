@@ -18,7 +18,7 @@ class DeliveryOrder(models.Model):
     production_request_id = models.CharField(max_length=255, blank=True, null=True)
     stock_transfer_id = models.CharField(max_length=255, blank=True, null=True)
     sales_order_id = models.CharField(max_length=255, blank=True, null=True)
-    approval_request = models.ForeignKey('LogisticsApprovalRequest', models.DO_NOTHING, blank=True, null=True)
+    approval_request = models.ForeignKey('delivery.LogisticsApprovalRequest', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         managed = False
