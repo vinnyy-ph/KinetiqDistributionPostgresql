@@ -37,6 +37,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    "delivery",
+    "picking",
+    "packing",
+    "shipment",
+    "rework",
     "rest_framework", 
     "corsheaders",     
     "django_cognito_jwt"
@@ -92,13 +97,15 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'Kinetiq-DB-Schema',
-        'USER': 'postgres',  
-        'PASSWORD': 'kinetiq',  
+        'USER': 'postgres',
+        'PASSWORD': 'kinetiq',
         'HOST': 'localhost',
         'PORT': '5432',
+        'OPTIONS': {
+            'options': '-c search_path=distribution,public'
+        }
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
