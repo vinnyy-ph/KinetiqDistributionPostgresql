@@ -1,3 +1,56 @@
 from django.contrib import admin
+from .models import (
+    Carrier, 
+    ShippingCost, 
+    OperationalCost, 
+    FailedShipment, 
+    ShipmentDetails, 
+    DeliveryReceipt, 
+    BillingReceipt, 
+    GoodsIssue
+)
 
-# Register your models here.
+@admin.register(Carrier)
+class CarrierAdmin(admin.ModelAdmin):
+    list_display = ('carrier_id', 'carrier_name', 'service_type', 'carrier_count')
+    search_fields = ('carrier_id', 'carrier_name')
+    list_filter = ('service_type',)
+
+@admin.register(ShippingCost)
+class ShippingCostAdmin(admin.ModelAdmin):
+    list_display = ('shipping_cost_id', 'weight_kg', 'distance_km', 'cost_per_kg', 'cost_per_km', 'total_shipping_cost')
+    search_fields = ('shipping_cost_id',)
+
+@admin.register(OperationalCost)
+class OperationalCostAdmin(admin.ModelAdmin):
+    list_display = ('operational_cost_id', 'additional_cost', 'total_operational_cost')
+    search_fields = ('operational_cost_id',)
+
+@admin.register(FailedShipment)
+class FailedShipmentAdmin(admin.ModelAdmin):
+    list_display = ('failed_shipment_id', 'failure_date', 'failure_reason', 'resolution_status')
+    search_fields = ('failed_shipment_id', 'failure_reason')
+    list_filter = ('resolution_status', 'failure_date')
+
+@admin.register(ShipmentDetails)
+class ShipmentDetailsAdmin(admin.ModelAdmin):
+    list_display = ('shipment_id', 'shipment_date', 'shipment_status', 'tracking_number', 'estimated_arrival_date', 'actual_arrival_date')
+    search_fields = ('shipment_id', 'tracking_number')
+    list_filter = ('shipment_status', 'shipment_date')
+
+@admin.register(DeliveryReceipt)
+class DeliveryReceiptAdmin(admin.ModelAdmin):
+    list_display = ('delivery_receipt_id', 'delivery_date', 'received_by', 'receipt_status')
+    search_fields = ('delivery_receipt_id', 'received_by')
+    list_filter = ('receipt_status', 'delivery_date')
+
+@admin.register(BillingReceipt)
+class BillingReceiptAdmin(admin.ModelAdmin):
+    list_display = ('billing_receipt_id', 'sales_invoice_id', 'service_billing_id')
+    search_fields = ('billing_receipt_id', 'sales_invoice_id', 'service_billing_id')
+
+@admin.register(GoodsIssue)
+class GoodsIssueAdmin(admin.ModelAdmin):
+    list_display = ('goods_issue_id', 'issue_date', 'issued_by')
+    search_fields = ('goods_issue_id', 'issued_by')
+    list_filter = ('issue_date',)
