@@ -1,6 +1,12 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from . import views
 
+router = DefaultRouter()
+router.register(r'delivery-orders', views.DeliveryOrderViewSet)
+
 urlpatterns = [
-    path('delivery-orders/', views.delivery_order_list, name='delivery_order_list'),
+    path('', include(router.urls)),
+    path('external-deliveries/', views.external_deliveries, name='external-deliveries'),
+    path('internal-deliveries/', views.internal_deliveries, name='internal-deliveries'),
 ]

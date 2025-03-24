@@ -1,5 +1,8 @@
 import React from "react";
 import "./styles/Distribution.css";
+import ExternalDelivery from "./submodules/ExternalDelivery";
+import InternalDelivery from "./submodules/InternalDelivery";
+import Picking from "./submodules/Picking";
 
 const BodyContent = () => {
     return (
