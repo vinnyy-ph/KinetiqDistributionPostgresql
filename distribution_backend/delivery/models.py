@@ -15,10 +15,10 @@ class DeliveryOrder(models.Model):
     is_project_based = models.TextField(blank=True, null=True)  # This field type is a guess.
     is_partial_delivery = models.TextField(blank=True, null=True)  # This field type is a guess.
     service_order_id = models.CharField(max_length=255, blank=True, null=True)
-    production_request_id = models.CharField(max_length=255, blank=True, null=True)
     stock_transfer_id = models.CharField(max_length=255, blank=True, null=True)
     sales_order_id = models.CharField(max_length=255, blank=True, null=True)
-    approval_request = models.ForeignKey('delivery.LogisticsApprovalRequest', models.DO_NOTHING, blank=True, null=True)
+    approval_request = models.ForeignKey('LogisticsApprovalRequest', models.DO_NOTHING, blank=True, null=True)
+    del_type = models.TextField(blank=True, null=True)  # This field type is a guess.
 
     class Meta:
         managed = False

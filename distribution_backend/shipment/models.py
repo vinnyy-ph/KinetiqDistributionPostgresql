@@ -1,3 +1,10 @@
+# This is an auto-generated Django model module.
+# You'll have to do the following manually to clean this up:
+#   * Rearrange models' order
+#   * Make sure each model has one field with primary_key=True
+#   * Make sure each ForeignKey and OneToOneField has `on_delete` set to the desired behavior
+#   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
+# Feel free to rename the models, but don't rename db_table values or field names.
 from django.db import models
 
 
@@ -14,7 +21,7 @@ class Carrier(models.Model):
 
 class ShippingCost(models.Model):
     shipping_cost_id = models.CharField(primary_key=True, max_length=255)
-    packing_list = models.ForeignKey('packing.PackingList', models.DO_NOTHING, blank=True, null=True)
+    packing_list = models.ForeignKey('PackingList', models.DO_NOTHING, blank=True, null=True)
     cost_per_kg = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     cost_per_km = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     weight_kg = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
@@ -31,7 +38,7 @@ class OperationalCost(models.Model):
     additional_cost = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     total_operational_cost = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     shipping_cost = models.ForeignKey(ShippingCost, models.DO_NOTHING, blank=True, null=True)
-    packing_cost = models.ForeignKey('packing.PackingCost', models.DO_NOTHING, blank=True, null=True)
+    packing_cost = models.ForeignKey('PackingCost', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         managed = False
@@ -59,7 +66,7 @@ class ShipmentDetails(models.Model):
     estimated_arrival_date = models.DateTimeField(blank=True, null=True)
     actual_arrival_date = models.DateTimeField(blank=True, null=True)
     failed_shipment = models.ForeignKey(FailedShipment, models.DO_NOTHING, blank=True, null=True)
-    packing_list = models.ForeignKey('packing.PackingList', models.DO_NOTHING, blank=True, null=True)
+    packing_list = models.ForeignKey('PackingList', models.DO_NOTHING, blank=True, null=True)
     shipping_cost = models.ForeignKey(ShippingCost, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
@@ -74,6 +81,7 @@ class DeliveryReceipt(models.Model):
     signature = models.TextField()
     receipt_status = models.TextField(blank=True, null=True)  # This field type is a guess.
     shipment = models.ForeignKey(ShipmentDetails, models.DO_NOTHING, blank=True, null=True)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
 
     class Meta:
         managed = False
@@ -85,6 +93,7 @@ class BillingReceipt(models.Model):
     delivery_receipt = models.ForeignKey(DeliveryReceipt, models.DO_NOTHING, blank=True, null=True)
     sales_invoice_id = models.CharField(max_length=255, blank=True, null=True)
     service_billing_id = models.CharField(max_length=255, blank=True, null=True)
+    total_receipt = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
 
     class Meta:
         managed = False
