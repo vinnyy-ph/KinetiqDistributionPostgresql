@@ -102,14 +102,13 @@ class Command(BaseCommand):
             with connection.cursor() as cursor:
                 del_type = 'External Delivery' if is_external else 'Internal Delivery'
                 
-                # Create a delivery order and let the database handle ID generation
-                # We'll insert only minimal information to start
+                # Create a delivery order with default values for is_project_based and is_partial_delivery
                 cursor.execute("""
                     INSERT INTO distribution.delivery_order
-                    (order_status, del_type) 
-                    VALUES (%s, %s)
+                    (order_status, del_type, is_project_based, is_partial_delivery) 
+                    VALUES (%s, %s, %s, %s)
                     RETURNING del_order_id
-                """, ['Created', del_type])
+                """, ['Created', del_type, 'Non-Project Based', 'No'])
                 
                 # Get the generated delivery order ID
                 del_order_id = cursor.fetchone()[0]
