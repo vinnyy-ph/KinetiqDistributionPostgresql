@@ -44,8 +44,15 @@ INSTALLED_APPS = [
     "rework",
     "rest_framework", 
     "corsheaders",     
-    "django_cognito_jwt"
+    "django_cognito_jwt",
+    'django_crontab',
 ]
+
+
+CRONJOBS = [
+    ('*/5 * * * *', 'django.core.management.call_command', ['sync_delivery_orders']),
+]
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
