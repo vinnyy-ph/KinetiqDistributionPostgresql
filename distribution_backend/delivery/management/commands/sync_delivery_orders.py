@@ -1,7 +1,6 @@
 from django.core.management.base import BaseCommand
-from django.db import connection
+from django.db import connection, transaction
 from django.utils import timezone
-from delivery.models import DeliveryOrder, LogisticsApprovalRequest
 
 class Command(BaseCommand):
     help = 'Synchronizes delivery orders with source records'
@@ -100,41 +99,68 @@ class Command(BaseCommand):
     
     def create_delivery_order(self, source_id, source_type, is_external):
         try:
-            del_type = 'External Delivery' if is_external else 'Internal Delivery'
-            
-            # Create delivery kwargs with appropriate field set
-            delivery_kwargs = {
-                'order_status': 'Created',
-                'del_type': del_type
-            }
-            
-            # Set the appropriate ID field based on source_type
-            if source_type == 'sales_order':
-                delivery_kwargs['sales_order_id'] = source_id
-            elif source_type == 'service_order':
-                delivery_kwargs['service_order_id'] = source_id
-            elif source_type == 'stock_transfer':
-                delivery_kwargs['stock_transfer_id'] = source_id
-            elif source_type == 'content':
-                delivery_kwargs['content_id'] = source_id
-            
-            # Create the delivery order WITHOUT initially setting approval_request
-            delivery_order = DeliveryOrder.objects.create(**delivery_kwargs)
-            
-            # Now create logistics approval request with del_order set to the delivery order we just created
-            approval_request = LogisticsApprovalRequest.objects.create(
-                request_date=timezone.now().date(),
-                approval_status='Pending',
-                del_order=delivery_order  # This links the approval request to the delivery order
-            )
-            
-            # Now update the delivery order to link back to the approval request
-            delivery_order.approval_request = approval_request
-            delivery_order.save(update_fields=['approval_request'])
-            
-            self.stdout.write(f'Created delivery order for {source_type} {source_id}')
-            return delivery_order
-        
+            with connection.cursor() as cursor:
+                del_type = 'External Delivery' if is_external else 'Internal Delivery'
+                
+                # Create a delivery order and let the database handle ID generation
+                # We'll insert only minimal information to start
+                cursor.execute("""
+                    INSERT INTO distribution.delivery_order
+                    (order_status, del_type) 
+                    VALUES (%s, %s)
+                    RETURNING del_order_id
+                """, ['Created', del_type])
+                
+                # Get the generated delivery order ID
+                del_order_id = cursor.fetchone()[0]
+                
+                # Now update the specific source field
+                if source_type == 'sales_order':
+                    cursor.execute("""
+                        UPDATE distribution.delivery_order 
+                        SET sales_order_id = %s 
+                        WHERE del_order_id = %s
+                    """, [source_id, del_order_id])
+                elif source_type == 'service_order':
+                    cursor.execute("""
+                        UPDATE distribution.delivery_order 
+                        SET service_order_id = %s 
+                        WHERE del_order_id = %s
+                    """, [source_id, del_order_id])
+                elif source_type == 'stock_transfer':
+                    cursor.execute("""
+                        UPDATE distribution.delivery_order 
+                        SET stock_transfer_id = %s 
+                        WHERE del_order_id = %s
+                    """, [source_id, del_order_id])
+                elif source_type == 'content':
+                    cursor.execute("""
+                        UPDATE distribution.delivery_order 
+                        SET content_id = %s 
+                        WHERE del_order_id = %s
+                    """, [source_id, del_order_id])
+                
+                # Create the approval request separately
+                cursor.execute("""
+                    INSERT INTO distribution.logistics_approval_request
+                    (request_date, approval_status, del_order_id)
+                    VALUES (%s, %s, %s)
+                    RETURNING approval_request_id
+                """, [timezone.now().date(), 'Pending', del_order_id])
+                
+                # Get the generated approval request ID
+                approval_request_id = cursor.fetchone()[0]
+                
+                # Finally update the delivery order with the approval request ID
+                cursor.execute("""
+                    UPDATE distribution.delivery_order
+                    SET approval_request_id = %s
+                    WHERE del_order_id = %s
+                """, [approval_request_id, del_order_id])
+                
+                self.stdout.write(f'Created delivery order for {source_type} {source_id}')
+                return del_order_id
+                
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'Error creating delivery order for {source_type} {source_id}: {str(e)}'))
             return None
