@@ -4,7 +4,7 @@ from django.db import models
 class Carrier(models.Model):
     carrier_id = models.CharField(primary_key=True, max_length=255)
     carrier_name = models.CharField(max_length=255)
-    service_type = models.TextField(blank=True, null=True)  
+    service_type = models.TextField(blank=True, null=True)  # This field type is a guess.
     carrier_count = models.IntegerField(blank=True, null=True)
 
     class Meta:
@@ -85,12 +85,11 @@ class BillingReceipt(models.Model):
     delivery_receipt = models.ForeignKey(DeliveryReceipt, models.DO_NOTHING, blank=True, null=True)
     sales_invoice_id = models.CharField(max_length=255, blank=True, null=True)
     service_billing_id = models.CharField(max_length=255, blank=True, null=True)
-    total_receipt = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'billing_receipt'
-        
+
 
 class GoodsIssue(models.Model):
     goods_issue_id = models.CharField(primary_key=True, max_length=255)
