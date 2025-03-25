@@ -26,7 +26,7 @@ class PackingList(models.Model):
     packing_type = models.TextField(blank=True, null=True)  # This field type is a guess.
     total_items_packed = models.IntegerField(blank=True, null=True)
     packing_cost = models.ForeignKey(PackingCost, models.DO_NOTHING, blank=True, null=True)
-    picking_list = models.ForeignKey('PickingList', models.DO_NOTHING, blank=True, null=True)
+    picking_list = models.ForeignKey('picking.PickingList', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         managed = False

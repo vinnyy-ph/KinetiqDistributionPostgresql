@@ -21,7 +21,7 @@ class Carrier(models.Model):
 
 class ShippingCost(models.Model):
     shipping_cost_id = models.CharField(primary_key=True, max_length=255)
-    packing_list = models.ForeignKey('PackingList', models.DO_NOTHING, blank=True, null=True)
+    packing_list = models.ForeignKey('packing.PackingList', models.DO_NOTHING, blank=True, null=True)
     cost_per_kg = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     cost_per_km = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     weight_kg = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
@@ -38,7 +38,7 @@ class OperationalCost(models.Model):
     additional_cost = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     total_operational_cost = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     shipping_cost = models.ForeignKey(ShippingCost, models.DO_NOTHING, blank=True, null=True)
-    packing_cost = models.ForeignKey('PackingCost', models.DO_NOTHING, blank=True, null=True)
+    packing_cost = models.ForeignKey('packing.PackingCost', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         managed = False
@@ -66,7 +66,7 @@ class ShipmentDetails(models.Model):
     estimated_arrival_date = models.DateTimeField(blank=True, null=True)
     actual_arrival_date = models.DateTimeField(blank=True, null=True)
     failed_shipment = models.ForeignKey(FailedShipment, models.DO_NOTHING, blank=True, null=True)
-    packing_list = models.ForeignKey('PackingList', models.DO_NOTHING, blank=True, null=True)
+    packing_list = models.ForeignKey('packing.PackingList', models.DO_NOTHING, blank=True, null=True)
     shipping_cost = models.ForeignKey(ShippingCost, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:

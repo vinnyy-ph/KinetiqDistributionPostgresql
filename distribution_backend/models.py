@@ -79,7 +79,7 @@ class AuthUserUserPermissions(models.Model):
 
 class BillingReceipt(models.Model):
     billing_receipt_id = models.CharField(primary_key=True, max_length=255)
-    delivery_receipt = models.ForeignKey('DeliveryReceipt', models.DO_NOTHING, blank=True, null=True)
+    delivery_receipt = models.ForeignKey('shipment.DeliveryReceipt', models.DO_NOTHING, blank=True, null=True)
     sales_invoice_id = models.CharField(max_length=255, blank=True, null=True)
     service_billing_id = models.CharField(max_length=255, blank=True, null=True)
 
@@ -109,7 +109,7 @@ class DeliveryOrder(models.Model):
     production_request_id = models.CharField(max_length=255, blank=True, null=True)
     stock_transfer_id = models.CharField(max_length=255, blank=True, null=True)
     sales_order_id = models.CharField(max_length=255, blank=True, null=True)
-    approval_request = models.ForeignKey('LogisticsApprovalRequest', models.DO_NOTHING, blank=True, null=True)
+    approval_request = models.ForeignKey('delivery.LogisticsApprovalRequest', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         managed = False
@@ -215,7 +215,7 @@ class OperationalCost(models.Model):
     additional_cost = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     total_operational_cost = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     shipping_cost = models.ForeignKey('ShippingCost', models.DO_NOTHING, blank=True, null=True)
-    packing_cost = models.ForeignKey('PackingCost', models.DO_NOTHING, blank=True, null=True)
+    packing_cost = models.ForeignKey('packing.PackingCost', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         managed = False
@@ -240,7 +240,7 @@ class PackingList(models.Model):
     packing_type = models.TextField(blank=True, null=True)  # This field type is a guess.
     total_items_packed = models.IntegerField(blank=True, null=True)
     packing_cost = models.ForeignKey(PackingCost, models.DO_NOTHING, blank=True, null=True)
-    picking_list = models.ForeignKey('PickingList', models.DO_NOTHING, blank=True, null=True)
+    picking_list = models.ForeignKey('picking.PickingList', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         managed = False

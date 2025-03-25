@@ -13,7 +13,7 @@ class Rejection(models.Model):
     rejection_status = models.TextField(blank=True, null=True)  # This field type is a guess.
     rejection_reason = models.TextField()
     rejection_date = models.DateField(blank=True, null=True)
-    delivery_receipt = models.ForeignKey('DeliveryReceipt', models.DO_NOTHING, blank=True, null=True)
+    delivery_receipt = models.ForeignKey('shipment.DeliveryReceipt', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         managed = False
@@ -27,7 +27,7 @@ class ReworkOrder(models.Model):
     rework_date = models.DateField(blank=True, null=True)
     expected_completion = models.DateTimeField(blank=True, null=True)
     rejection = models.ForeignKey(Rejection, models.DO_NOTHING, blank=True, null=True)
-    failed_shipment = models.ForeignKey('FailedShipment', models.DO_NOTHING, blank=True, null=True)
+    failed_shipment = models.ForeignKey('shipment.FailedShipment', models.DO_NOTHING, blank=True, null=True)
     rework_types = models.TextField(blank=True, null=True)  # This field type is a guess.
 
     class Meta:
