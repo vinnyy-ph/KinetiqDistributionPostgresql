@@ -5,4 +5,4 @@ class DeliveryConfig(AppConfig):
     name = 'delivery'
 
     def ready(self):
-        import delivery.signals  # Import signals when app is ready
+        import delivery.signals  
