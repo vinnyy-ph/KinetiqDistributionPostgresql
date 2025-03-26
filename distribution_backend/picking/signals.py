@@ -60,6 +60,7 @@ def create_packing_data(sender, instance, **kwargs):
     """
     When a PickingList is marked as 'Completed', 
     automatically create associated PackingCost and PackingList
+    and update total_items_packed for internal deliveries only
     """
     if instance.picked_status == 'Completed':
         try:
@@ -80,6 +81,7 @@ def create_packing_data(sender, instance, **kwargs):
                         INSERT INTO packing_list 
                         (packed_by, packing_status, packing_type, picking_list_id, packing_cost_id)
                         VALUES (%s, %s, %s, %s, %s)
+                        RETURNING packing_list_id
                     """, [
                         instance.picked_by, 
                         'Pending', 
@@ -87,6 +89,55 @@ def create_packing_data(sender, instance, **kwargs):
                         instance.picking_list_id, 
                         packing_cost_id
                     ])
+                    packing_list_id = cursor.fetchone()[0]
+                
+                    # Calculate and update total_items_packed if we have a delivery order
+                    if instance.approval_request and instance.approval_request.del_order:
+                        delivery_order = instance.approval_request.del_order
+                        total_items = 0
+                        
+                        # Handle stock transfers (internal)
+                        if delivery_order.stock_transfer_id:
+                            print(f"Processing stock transfer: {delivery_order.stock_transfer_id}")
+                            cursor.execute("""
+                                SELECT quantity
+                                FROM inventory.warehouse_movement
+                                WHERE movement_id = %s
+                            """, [delivery_order.stock_transfer_id])
+                            result = cursor.fetchone()
+                            print(f"Stock transfer query result: {result}")
+                            if result and result[0]:
+                                total_items = result[0]
+                                print(f"Stock transfer items: {total_items}")
+                            else:
+                                print("No stock transfer quantity found")
+                        
+                        # Handle content items (internal)
+                        elif delivery_order.content_id:
+                            print(f"Processing content ID: {delivery_order.content_id}")
+                            cursor.execute("""
+                                SELECT quantity
+                                FROM operations.document_items
+                                WHERE content_id = %s
+                            """, [delivery_order.content_id])
+                            result = cursor.fetchone()
+                            print(f"Content ID query result: {result}")
+                            if result and result[0]:
+                                total_items = result[0]
+                                print(f"Content items: {total_items}")
+                            else:
+                                print("No content quantity found")
+                        
+                        # Update packing list with total items only if we found a quantity
+                        if total_items > 0:
+                            cursor.execute("""
+                                UPDATE packing_list
+                                SET total_items_packed = %s
+                                WHERE packing_list_id = %s
+                            """, [total_items, packing_list_id])
+                            print(f"Updated total_items_packed to {total_items}")
+                        else:
+                            print(f"No items to pack found for delivery order {delivery_order.del_order_id}")
                 
                 print(f"Created PackingCost and PackingList for PickingList {instance.picking_list_id}")
         
