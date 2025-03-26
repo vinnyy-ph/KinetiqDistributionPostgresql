@@ -58,20 +58,19 @@ class Command(BaseCommand):
     
     def sync_stock_transfers(self):
         with connection.cursor() as cursor:
-            # Find stock transfers that don't have delivery orders
+            # Find warehouse movements that don't have delivery orders
             cursor.execute("""
-                SELECT adjustment_id
-                FROM inventory.inventory_adjustments ia
-                WHERE ia.adjustment_type = 'Outbound-Distribution'
-                AND NOT EXISTS (
+                SELECT movement_id
+                FROM inventory.warehouse_movement wm
+                WHERE NOT EXISTS (
                     SELECT 1
                     FROM distribution.delivery_order d
-                    WHERE d.stock_transfer_id = ia.adjustment_id
+                    WHERE d.stock_transfer_id = wm.movement_id
                 )
             """)
             transfers = cursor.fetchall()
             
-            self.stdout.write(f'Found {len(transfers)} new stock transfers')
+            self.stdout.write(f'Found {len(transfers)} new warehouse movements')
             
             for transfer in transfers:
                 transfer_id = transfer[0]
