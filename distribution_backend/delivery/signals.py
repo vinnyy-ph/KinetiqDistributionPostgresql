@@ -1,10 +1,9 @@
-# delivery/signals.py
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from delivery.models import LogisticsApprovalRequest, DeliveryOrder
 from picking.models import PickingList
-from django.db import transaction
-from django.utils import timezone  # Import timezone to get current date
+from django.db import transaction, connection
+from django.utils import timezone
 
 @receiver(post_save, sender=LogisticsApprovalRequest)
 def handle_approval_request_update(sender, instance, **kwargs):
@@ -31,10 +30,33 @@ def handle_approval_request_update(sender, instance, **kwargs):
                             order_status='Approved'
                         )
                         
+                        # Determine warehouse_id
+                        warehouse_id = None
+                        if instance.del_order.content_id:
+                            with connection.cursor() as cursor:
+                                cursor.execute("""
+                                    SELECT warehouse_id 
+                                    FROM operations.document_items 
+                                    WHERE content_id = %s
+                                """, [instance.del_order.content_id])
+                                result = cursor.fetchone()
+                                warehouse_id = result[0] if result else None
+                        
+                        elif instance.del_order.stock_transfer_id:
+                            with connection.cursor() as cursor:
+                                cursor.execute("""
+                                    SELECT source 
+                                    FROM inventory.warehouse_movement 
+                                    WHERE movement_id = %s
+                                """, [instance.del_order.stock_transfer_id])
+                                result = cursor.fetchone()
+                                warehouse_id = result[0] if result else None
+                        
                         # Create new picking list record
                         PickingList.objects.create(
                             picked_status='Not Started',
-                            approval_request=instance
+                            approval_request=instance,
+                            warehouse_id=warehouse_id  # Add this line
                         )
                         print(f"Created new picking list for approval request {instance.approval_request_id}")
         except Exception as e:
