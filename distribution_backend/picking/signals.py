@@ -127,6 +127,38 @@ def create_packing_data(sender, instance, **kwargs):
                                 print(f"Content items: {total_items}")
                             else:
                                 print("No content quantity found")
+                                
+                        # Handle sales orders (external)
+                        elif delivery_order.sales_order_id:
+                            print(f"Processing sales order: {delivery_order.sales_order_id}")
+                            # First get the statement_id from the sales order
+                            cursor.execute("""
+                                SELECT statement_id
+                                FROM sales.orders
+                                WHERE order_id = %s
+                            """, [delivery_order.sales_order_id])
+                            statement_result = cursor.fetchone()
+                            
+                            if statement_result and statement_result[0]:
+                                statement_id = statement_result[0]
+                                print(f"Found statement ID: {statement_id}")
+                                
+                                # Now get all items from the statement
+                                cursor.execute("""
+                                    SELECT SUM(quantity), SUM(total_price)
+                                    FROM sales.statement_item
+                                    WHERE statement_id = %s
+                                """, [statement_id])
+                                items_result = cursor.fetchone()
+                                
+                                if items_result and items_result[0]:
+                                    total_items = items_result[0]
+                                    total_price = items_result[1] if items_result[1] else 0.00
+                                    print(f"Sales order items: {total_items}, Total price: {total_price}")
+                                else:
+                                    print(f"No items found for statement {statement_id}")
+                            else:
+                                print(f"No statement found for sales order {delivery_order.sales_order_id}")
                         
                         # Update packing list with total items only if we found a quantity
                         if total_items > 0:
