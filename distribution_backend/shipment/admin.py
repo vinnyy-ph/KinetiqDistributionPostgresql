@@ -35,7 +35,7 @@ class ShipmentDetailsAdmin(admin.ModelAdmin):
     list_display = ('shipment_id', 'shipment_date', 'shipment_status', 'tracking_number', 'estimated_arrival_date')
     search_fields = ('shipment_id', 'tracking_number')
     list_filter = ('shipment_date', 'shipment_status')
-    raw_id_fields = ('carrier', 'failed_shipment', 'packing_list', 'shipping_cost')
+    raw_id_fields = ('carrier', 'packing_list', 'shipping_cost')
 
 @admin.register(DeliveryReceipt)
 class DeliveryReceiptAdmin(admin.ModelAdmin):

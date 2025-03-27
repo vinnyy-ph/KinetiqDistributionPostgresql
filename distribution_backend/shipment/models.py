@@ -58,7 +58,7 @@ class ShipmentDetails(models.Model):
     tracking_number = models.CharField(max_length=100)
     estimated_arrival_date = models.DateTimeField(blank=True, null=True)
     actual_arrival_date = models.DateTimeField(blank=True, null=True)
-    failed_shipment = models.ForeignKey(FailedShipment, models.DO_NOTHING, blank=True, null=True)
+    
     packing_list = models.ForeignKey('packing.PackingList', models.DO_NOTHING, blank=True, null=True)
     shipping_cost = models.ForeignKey(ShippingCost, models.DO_NOTHING, blank=True, null=True)
 
