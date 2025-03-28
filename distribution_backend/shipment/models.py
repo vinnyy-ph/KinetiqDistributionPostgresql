@@ -71,7 +71,7 @@ class DeliveryReceipt(models.Model):
     delivery_receipt_id = models.CharField(primary_key=True, max_length=255)
     delivery_date = models.DateField(blank=True, null=True)
     received_by = models.CharField(max_length=255, blank=True, null=True)
-    signature = models.TextField()
+    signature = models.TextField(blank=True, null=True)  # Update this line
     receipt_status = models.TextField(blank=True, null=True)  # This field type is a guess.
     shipment = models.ForeignKey(ShipmentDetails, models.DO_NOTHING, blank=True, null=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
