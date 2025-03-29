@@ -46,13 +46,14 @@ INSTALLED_APPS = [
     "corsheaders",     
     "django_cognito_jwt",
     'django_crontab',
+    'django_apscheduler',
+    'distribution_backend.apps.DistributionBackendConfig',
 ]
 
 
 CRONJOBS = [
-    ('*/5 * * * *', 'django.core.management.call_command', ['sync_delivery_orders']),
+    ('* * * * *', 'django.core.management.call_command', ['sync_delivery_orders']),
 ]
-
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -154,3 +155,25 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'distribution_backend': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
