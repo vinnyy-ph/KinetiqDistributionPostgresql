@@ -1,5 +1,8 @@
 from django.apps import AppConfig
 
-class ReworkConfig(AppConfig):  # Use the appropriate name for your app
+class ReworkConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'rework'  # Use the actual name of your app
+    name = 'rework'
+
+    def ready(self):
+        import rework.signals  # Import signals when app is ready
