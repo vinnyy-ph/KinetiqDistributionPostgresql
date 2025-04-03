@@ -19,7 +19,7 @@ def start():
         scheduler.add_job(
             sync_delivery_orders_job, 
             'interval', 
-            minutes=1,
+            minutes=10,
             id='sync_delivery_orders_job',
             replace_existing=True
         )
