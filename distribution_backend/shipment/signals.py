@@ -73,6 +73,39 @@ def handle_shipment_status_change(sender, instance, **kwargs):
                             result = cursor.fetchone()
                             delivery_receipt_id = result[0] if result else None
                             print(f"Created DeliveryReceipt {delivery_receipt_id} for shipment {instance.shipment_id}")
+            
+            # Update associated PackingList status to 'Shipped'
+            try:
+                # Use a separate transaction for this operation
+                with transaction.atomic():
+                    with connection.cursor() as cursor:
+                        # Get the packing_list_id first
+                        cursor.execute("""
+                            SELECT packing_list_id 
+                            FROM distribution.shipment_details 
+                            WHERE shipment_id = %s
+                        """, [instance.shipment_id])
+                        packing_result = cursor.fetchone()
+                        
+                        if packing_result and packing_result[0]:
+                            packing_list_id = packing_result[0]
+                            print(f"Found packing_list_id {packing_list_id} for shipment {instance.shipment_id}")
+                            
+                            # Update packing status in a separate statement
+                            cursor.execute("""
+                                UPDATE distribution.packing_list 
+                                SET packing_status = 'Shipped' 
+                                WHERE packing_list_id = %s
+                            """, [packing_list_id])
+                            
+                            if cursor.rowcount > 0:
+                                print(f"Updated packing_list {packing_list_id} status to 'Shipped'")
+                            else:
+                                print(f"No update needed for packing_list {packing_list_id}")
+            except Exception as e:
+                print(f"Error updating packing status: {str(e)}")
+                traceback.print_exc()
+                # This error shouldn't prevent the rest of the processing
     except Exception as e:
         print(f"Error handling shipment status change: {str(e)}")
         traceback.print_exc()
