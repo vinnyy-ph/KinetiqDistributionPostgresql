@@ -3,7 +3,7 @@ from django.dispatch import receiver
 from django.db import transaction, connection
 from shipment.models import ShipmentDetails, FailedShipment, DeliveryReceipt, OperationalCost
 import traceback
-from datetime import date
+from datetime import date, timedelta  # Added timedelta import
 from decimal import Decimal
 
 @receiver(post_save, sender=ShipmentDetails)
@@ -47,6 +47,19 @@ def handle_shipment_status_change(sender, instance, **kwargs):
         
         # If status is 'Shipped', check if DeliveryReceipt already exists
         if current_status == 'Shipped':
+            # Set shipment_date and estimated_arrival_date
+            shipment_date = date.today()
+            estimated_arrival_date = shipment_date + timedelta(days=2)
+            
+            # Update the shipment record with dates
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE distribution.shipment_details
+                    SET shipment_date = %s, estimated_arrival_date = %s
+                    WHERE shipment_id = %s
+                """, [shipment_date, estimated_arrival_date, instance.shipment_id])
+                print(f"Updated shipment {instance.shipment_id} with shipment_date: {shipment_date} and estimated_arrival_date: {estimated_arrival_date}")
+            
             with connection.cursor() as cursor:
                 cursor.execute("""
                     SELECT delivery_receipt_id
@@ -337,6 +350,14 @@ def handle_delivery_receipt_update(sender, instance, **kwargs):
                                             WHERE order_id = %s
                                         """, [goods_issue_id, sales_order_id])
                                         print(f"Updated sales.orders {sales_order_id} with goods_issue_id {goods_issue_id}")
+                                    
+                                    # Update actual_arrival_date on the associated shipment record
+                                    cursor.execute("""
+                                        UPDATE distribution.shipment_details
+                                        SET actual_arrival_date = %s
+                                        WHERE shipment_id = %s
+                                    """, [date.today(), instance.shipment_id])
+                                    print(f"Updated shipment {instance.shipment_id} with actual_arrival_date: {date.today()}")
     except Exception as e:
         print(f"Error handling delivery receipt update: {str(e)}")
         traceback.print_exc()
