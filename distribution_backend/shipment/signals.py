@@ -104,21 +104,85 @@ def handle_shipment_status_change(sender, instance, **kwargs):
                 if not result:
                     with transaction.atomic():
                         with connection.cursor() as cursor:
+                            # Check delivery types and set receiving_module accordingly
+                            receiving_module = None
+                            content_id = None
+                            stock_transfer_id = None
+                            
+                            # Check if this is a content_id delivery or stock_transfer
                             cursor.execute("""
-                                INSERT INTO distribution.delivery_receipt
-                                (delivery_date, received_by, signature, receipt_status, shipment_id)
-                                VALUES (%s, %s, %s, %s, %s)
-                                RETURNING delivery_receipt_id
-                            """, [
-                                date.today(),
-                                None,  # received_by will be filled later
-                                '',  # Empty signature as requested (cannot be NULL)
-                                'Pending',  # Default receipt_status
-                                instance.shipment_id
-                            ])
+                                SELECT delivery.content_id, delivery.stock_transfer_id
+                                FROM distribution.shipment_details sd
+                                JOIN distribution.packing_list pl ON sd.packing_list_id = pl.packing_list_id
+                                JOIN distribution.picking_list pkl ON pl.picking_list_id = pkl.picking_list_id
+                                JOIN distribution.logistics_approval_request lar ON pkl.approval_request_id = lar.approval_request_id
+                                JOIN distribution.delivery_order delivery ON lar.del_order_id = delivery.del_order_id
+                                WHERE sd.shipment_id = %s
+                            """, [instance.shipment_id])
+                            
+                            delivery_result = cursor.fetchone()
+                            
+                            if delivery_result:
+                                content_id = delivery_result[0]
+                                stock_transfer_id = delivery_result[1]
+                                
+                                # Case 1: This is a content_id delivery (from operations module)
+                                if content_id:
+                                    print(f"This is a content_id delivery: {content_id}")
+                                    
+                                    # Get the receiving_module from document_items
+                                    cursor.execute("""
+                                        SELECT receiving_module
+                                        FROM operations.document_items
+                                        WHERE content_id = %s
+                                    """, [content_id])
+                                    module_result = cursor.fetchone()
+                                    
+                                    if module_result and module_result[0]:
+                                        receiving_module = module_result[0]
+                                        print(f"Found receiving_module: {receiving_module}")
+                                
+                                # Case 2: This is a stock_transfer delivery (from inventory module)
+                                elif stock_transfer_id:
+                                    print(f"This is a stock_transfer delivery: {stock_transfer_id}")
+                                    # Set receiving_module to Inventory for warehouse movements
+                                    receiving_module = "Inventory"
+                                    print(f"Setting receiving_module to: {receiving_module}")
+                            
+                            # Now include receiving_module when creating the delivery receipt
+                            if receiving_module:
+                                cursor.execute("""
+                                    INSERT INTO distribution.delivery_receipt
+                                    (delivery_date, received_by, signature, receipt_status, shipment_id, receiving_module)
+                                    VALUES (%s, %s, %s, %s, %s, %s)
+                                    RETURNING delivery_receipt_id
+                                """, [
+                                    date.today(),
+                                    None,  # received_by will be filled later
+                                    '',  # Empty signature as requested (cannot be NULL)
+                                    'Pending',  # Default receipt_status
+                                    instance.shipment_id,
+                                    receiving_module
+                                ])
+                            else:
+                                cursor.execute("""
+                                    INSERT INTO distribution.delivery_receipt
+                                    (delivery_date, received_by, signature, receipt_status, shipment_id)
+                                    VALUES (%s, %s, %s, %s, %s)
+                                    RETURNING delivery_receipt_id
+                                """, [
+                                    date.today(),
+                                    None,  # received_by will be filled later
+                                    '',  # Empty signature as requested (cannot be NULL)
+                                    'Pending',  # Default receipt_status
+                                    instance.shipment_id
+                                ])
+                            
                             result = cursor.fetchone()
                             delivery_receipt_id = result[0] if result else None
                             print(f"Created DeliveryReceipt {delivery_receipt_id} for shipment {instance.shipment_id}")
+                            if receiving_module:
+                                print(f"  - With receiving_module: {receiving_module}")
             
             # Update associated PackingList status to 'Shipped'
             try:
