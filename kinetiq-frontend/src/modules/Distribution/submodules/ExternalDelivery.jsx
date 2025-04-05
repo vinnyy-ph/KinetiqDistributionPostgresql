@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import "../styles/ExternalDelivery.css";
-import TabNavigation from "../components/delivery/TabNavigation.jsx";
-import DeliveryTable from "../components/delivery/DeliveryTable.jsx";
+import "./ExternalDelivery.css";
+import TabNavigation from "./TabNavigation";
+import DeliveryTable from "./DeliveryTable";
 
 const ExternalDelivery = () => {
   // State for tab management

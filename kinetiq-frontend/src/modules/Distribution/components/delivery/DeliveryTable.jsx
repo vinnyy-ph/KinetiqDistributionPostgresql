@@ -4,7 +4,7 @@ const DeliveryTable = ({ deliveries, searchTerm, statusFilter, deliveryType }) =
   // State for table management
   const [filteredDeliveries, setFilteredDeliveries] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(9);
+  const [itemsPerPage] = useState(10);
   const [sortField, setSortField] = useState("del_order_id");
   const [sortDirection, setSortDirection] = useState("asc");
 
@@ -100,6 +100,12 @@ const DeliveryTable = ({ deliveries, searchTerm, statusFilter, deliveryType }) =
                   <span className="sort-icon">{sortDirection === "asc" ? "↑" : "↓"}</span>
                 )}
               </th>
+              <th onClick={() => handleSort("approval_request_id")} className="sortable">
+                Approval ID
+                {sortField === "approval_request_id" && (
+                  <span className="sort-icon">{sortDirection === "asc" ? "↑" : "↓"}</span>
+                )}
+              </th>
               <th onClick={() => handleSort("order_status")} className="sortable">
                 Status
                 {sortField === "order_status" && (
@@ -118,6 +124,7 @@ const DeliveryTable = ({ deliveries, searchTerm, statusFilter, deliveryType }) =
               currentItems.map((order, index) => (
                 <tr key={order.del_order_id} className={index % 2 === 0 ? "even-row" : "odd-row"}>
                   <td>{formatID(order.del_order_id, "delivery")}</td>
+                  <td>{formatID(order.approval_request_id, "approval")}</td>
                   <td className={`status-cell status-${order.order_status?.toLowerCase() || 'created'}`}>
                     {order.order_status || "Created"}
                   </td>
@@ -132,7 +139,7 @@ const DeliveryTable = ({ deliveries, searchTerm, statusFilter, deliveryType }) =
               ))
             ) : (
               <tr>
-                <td colSpan="5" className="no-data">
+                <td colSpan="6" className="no-data">
                   No {deliveryType === 'sales' ? 'sales' : 'service'} delivery orders found
                 </td>
               </tr>
