@@ -21,11 +21,17 @@ const DeliveryTable = ({ deliveries, searchTerm, statusFilter, deliveryType }) =
     if (searchTerm.trim() !== "") {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(order => {
-        const idMatches = order.del_order_id?.toLowerCase().includes(term);
-        const salesMatches = order.sales_order_id?.toLowerCase().includes(term);
-        const serviceMatches = order.service_order_id?.toLowerCase().includes(term);
+        const deliveryIdMatches = order.del_order_id?.toLowerCase().includes(term);
+        const contentIdMatches = order.content_id?.toLowerCase().includes(term);
+        const stockTransferIdMatches = order.stock_transfer_id?.toLowerCase().includes(term);
+        const salesOrderIdMatches = order.sales_order_id?.toLowerCase().includes(term);
+        const serviceOrderIdMatches = order.service_order_id?.toLowerCase().includes(term);
         
-        return idMatches || salesMatches || serviceMatches;
+        return deliveryIdMatches || 
+               contentIdMatches || 
+               stockTransferIdMatches || 
+               salesOrderIdMatches || 
+               serviceOrderIdMatches;
       });
     }
     
@@ -68,12 +74,14 @@ const DeliveryTable = ({ deliveries, searchTerm, statusFilter, deliveryType }) =
     
     if (type === "delivery") {
       return id.startsWith("DIS-DO-") ? id : `DIS-DO-${new Date().getFullYear()}-${id}`;
+    } else if (type === "content") {
+      return id.startsWith("OPS-DOI-") ? id : `OPS-DOI-${new Date().getFullYear()}-${id}`;
+    } else if (type === "stock") {
+      return id.startsWith("INV-WM-") ? id : `INV-WM-${new Date().getFullYear()}-${id}`;
     } else if (type === "sales") {
       return id.startsWith("SALES-ORD-") ? id : `SALES-ORD-${new Date().getFullYear()}-${id}`;
     } else if (type === "service") {
       return id.startsWith("SERVICES-DO-") ? id : `SERVICES-DO-${new Date().getFullYear()}-${id}`;
-    } else if (type === "approval") {
-      return id.startsWith("DIS-LOR-") ? id : `DIS-LOR-${new Date().getFullYear()}-${id}`;
     }
     
     return id;
@@ -83,7 +91,7 @@ const DeliveryTable = ({ deliveries, searchTerm, statusFilter, deliveryType }) =
     <div className="delivery-table-container">
       <div className="table-metadata">
         <span className="record-count">
-          Showing {filteredDeliveries.length} {deliveryType === 'sales' ? 'sales' : 'service'} delivery orders
+          Showing {filteredDeliveries.length} {deliveryType} delivery orders
         </span>
         <span className="pagination-info">
           Page {currentPage} of {totalPages || 1}
@@ -109,7 +117,10 @@ const DeliveryTable = ({ deliveries, searchTerm, statusFilter, deliveryType }) =
               <th>Is Project-Based?</th>
               <th>Is Partial Delivery?</th>
               <th>
-                {deliveryType === 'sales' ? 'Sales Order ID' : 'Service Order ID'}
+                {deliveryType === 'sales' ? 'Sales Order ID' : 
+                 deliveryType === 'service' ? 'Service Order ID' : 
+                 deliveryType === 'content' ? 'Content ID' : 
+                 'Stock Transfer ID'}
               </th>
             </tr>
           </thead>
@@ -121,19 +132,23 @@ const DeliveryTable = ({ deliveries, searchTerm, statusFilter, deliveryType }) =
                   <td className={`status-cell status-${order.order_status?.toLowerCase() || 'created'}`}>
                     {order.order_status || "Created"}
                   </td>
-                  <td className="centered-cell">{order.is_project_based === 'Project Based' ? "Yes" : "No"}</td>
-                  <td className="centered-cell">{order.is_partial_delivery === 'Yes' ? "Yes" : "No"}</td>
+                  <td className="centered-cell">{order.is_project_based ? "Yes" : "No"}</td>
+                  <td className="centered-cell">{order.is_partial_delivery ? "Yes" : "No"}</td>
                   <td>
                     {deliveryType === 'sales' 
-                      ? formatID(order.sales_order_id, "sales") 
-                      : formatID(order.service_order_id, "service")}
+                      ? formatID(order.sales_order_id, "sales") : 
+                     deliveryType === 'service' 
+                      ? formatID(order.service_order_id, "service") : 
+                     deliveryType === 'content' 
+                      ? formatID(order.content_id, "content") : 
+                      formatID(order.stock_transfer_id, "stock")}
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
                 <td colSpan="5" className="no-data">
-                  No {deliveryType === 'sales' ? 'sales' : 'service'} delivery orders found
+                  No {deliveryType} delivery orders found
                 </td>
               </tr>
             )}

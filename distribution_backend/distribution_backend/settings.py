@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework.authtoken',
     "delivery",
     "picking",
     "packing",
@@ -72,13 +73,27 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  
 ]
 
-REST_FRAMEWORK = { 
-    'DEFAULT_PERMISSION_CLASSES': ( 
-    'rest_framework.permissions.AllowAny' 
-    ), 
-    "DEFAULT_AUTHENTICATION_CLASSES": ( 
-    "django_cognito_jwt.JSONWebTokenAuthentication", 
-    ), 
+# REST_FRAMEWORK = { 
+#     'DEFAULT_AUTHENTICATION_CLASSES': (
+#         'rest_framework.authentication.TokenAuthentication',
+#         'rest_framework.authentication.SessionAuthentication',
+#     ),
+#     'DEFAULT_PERMISSION_CLASSES': 
+#     ( 'rest_framework.permissions.IsAdminUser', ),
+#     "DEFAULT_AUTHENTICATION_CLASSES": ( 
+#     "django_cognito_jwt.JSONWebTokenAuthentication", 
+#     ), 
+# }
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.AllowAny',  # Change this for development
+    ),
 }
 
 ROOT_URLCONF = 'distribution_backend.urls'

@@ -21,4 +21,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     # Include the delivery app URLs under the /api/ path
     path('api/', include('delivery.urls')),
+    path('api/', include('picking.urls')),
 ]
