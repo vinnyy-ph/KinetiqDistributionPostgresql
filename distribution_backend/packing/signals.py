@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from packing.models import PackingList, PackingCost
 from shipment.models import ShippingCost
 import traceback
-from datetime import date
+from datetime import date, timedelta  # Added timedelta import
 from decimal import Decimal
 
 @receiver(pre_save, sender=PackingCost)
@@ -255,21 +255,26 @@ def create_shipment_data(sender, instance, **kwargs):
                     try:
                         tracking_number = 'TRK' + instance.packing_list_id[-8:] if len(instance.packing_list_id) >= 8 else 'TRK-' + str(date.today().strftime('%y%m%d'))
                         
+                        # Add estimated_arrival_date calculation at creation time
+                        shipment_date = date.today()  # Today is when it's packed
+                        estimated_arrival_date = shipment_date + timedelta(days=2)  # Estimate 2 days for delivery
+                        
                         cursor.execute("""
                             INSERT INTO distribution.shipment_details 
-                            (shipment_date, shipment_status, tracking_number, packing_list_id, shipping_cost_id)
-                            VALUES (%s, %s, %s, %s, %s)
+                            (shipment_date, shipment_status, tracking_number, estimated_arrival_date, packing_list_id, shipping_cost_id)
+                            VALUES (%s, %s, %s, %s, %s, %s)
                             RETURNING shipment_id
                         """, [
-                            None,  # shipment_date starts as NULL
+                            shipment_date,  # Set shipment_date at creation (instead of NULL)
                             'Pending',  # Default shipment_status 
                             tracking_number,
+                            estimated_arrival_date,  # Set estimated date at creation
                             instance.packing_list_id,
                             shipping_cost_id
                         ])
                         result = cursor.fetchone()
                         shipment_id = result[0] if result else None
-                        print(f"Created shipment_id: {shipment_id}")
+                        print(f"Created shipment_id: {shipment_id} with estimated delivery on {estimated_arrival_date}")
                         
                         if shipment_id is None:
                             raise Exception("Failed to create shipment_details record")

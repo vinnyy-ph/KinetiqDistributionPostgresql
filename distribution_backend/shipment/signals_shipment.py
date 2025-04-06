@@ -15,6 +15,7 @@ def handle_shipment_status_change(sender, instance, **kwargs):
     try:
         # Get the current status
         current_status = instance.shipment_status
+        print(f"DEBUG: Processing shipment {instance.shipment_id} with status: {current_status}")
         
         # If status is 'Failed', check if FailedShipment already exists
         if current_status == 'Failed':
@@ -102,16 +103,112 @@ def handle_shipment_status_change(sender, instance, **kwargs):
                 
                 # If no DeliveryReceipt exists, create one
                 if not result:
+                    print(f"DEBUG: No delivery receipt exists for shipment {instance.shipment_id}, creating one...")
+                    
+                    # First, let's trace the entire chain from shipment to customer for debugging
+                    with connection.cursor() as debug_cursor:
+                        # Step 1: Get the delivery order info
+                        debug_query = """
+                            SELECT 
+                                delivery.del_order_id,
+                                delivery.sales_order_id,
+                                delivery.content_id,
+                                delivery.stock_transfer_id
+                            FROM distribution.shipment_details sd
+                            JOIN distribution.packing_list pl ON sd.packing_list_id = pl.packing_list_id
+                            JOIN distribution.picking_list pkl ON pl.picking_list_id = pkl.picking_list_id
+                            JOIN distribution.logistics_approval_request lar ON pkl.approval_request_id = lar.approval_request_id
+                            JOIN distribution.delivery_order delivery ON lar.del_order_id = delivery.del_order_id
+                            WHERE sd.shipment_id = %s
+                        """
+                        debug_cursor.execute(debug_query, [instance.shipment_id])
+                        delivery_order_info = debug_cursor.fetchone()
+                        
+                        if not delivery_order_info:
+                            print(f"DEBUG: ERROR - No delivery order found for shipment {instance.shipment_id}")
+                        else:
+                            del_order_id, sales_order_id, content_id, stock_transfer_id = delivery_order_info
+                            print(f"DEBUG: Found delivery order: {del_order_id}")
+                            print(f"DEBUG: sales_order_id: {sales_order_id}")
+                            print(f"DEBUG: content_id: {content_id}")
+                            print(f"DEBUG: stock_transfer_id: {stock_transfer_id}")
+                            
+                            # Step 2: If it's a sales order, trace to the customer
+                            if sales_order_id:
+                                # Get the statement_id
+                                statement_query = """
+                                    SELECT statement_id
+                                    FROM sales.orders
+                                    WHERE order_id = %s
+                                """
+                                debug_cursor.execute(statement_query, [sales_order_id])
+                                statement_result = debug_cursor.fetchone()
+                                
+                                if not statement_result:
+                                    print(f"DEBUG: ERROR - No statement_id found for sales_order {sales_order_id}")
+                                    
+                                    # Check if the order exists
+                                    debug_cursor.execute("""
+                                        SELECT * FROM sales.orders WHERE order_id = %s
+                                    """, [sales_order_id])
+                                    order_data = debug_cursor.fetchone()
+                                    print(f"DEBUG: Order data: {order_data}")
+                                else:
+                                    statement_id = statement_result[0]
+                                    print(f"DEBUG: Found statement_id: {statement_id}")
+                                    
+                                    # Get the customer_id
+                                    customer_query = """
+                                        SELECT s.customer_id
+                                        FROM sales.statement s
+                                        WHERE s.statement_id = %s
+                                    """
+                                    debug_cursor.execute(customer_query, [statement_id])
+                                    customer_result = debug_cursor.fetchone()
+                                    
+                                    if not customer_result:
+                                        print(f"DEBUG: ERROR - No customer found for statement {statement_id}")
+                                        
+                                        # Check if the statement exists
+                                        debug_cursor.execute("""
+                                            SELECT * FROM sales.statement WHERE statement_id = %s
+                                        """, [statement_id])
+                                        statement_data = debug_cursor.fetchone()
+                                        print(f"DEBUG: Statement data: {statement_data}")
+                                        
+                                        # Check statement table columns
+                                        debug_cursor.execute("""
+                                            SELECT column_name
+                                            FROM information_schema.columns
+                                            WHERE table_schema = 'sales'
+                                            AND table_name = 'statement'
+                                        """)
+                                        columns = debug_cursor.fetchall()
+                                        print(f"DEBUG: Statement table columns: {[col[0] for col in columns]}")
+                                    else:
+                                        customer_id = customer_result[0]
+                                        print(f"DEBUG: Found customer_id: {customer_id}")
+                                        
+                                        # Verify the customer exists
+                                        if customer_id:
+                                            debug_cursor.execute("""
+                                                SELECT * FROM sales.customers WHERE customer_id = %s
+                                            """, [customer_id])
+                                            customer_data = debug_cursor.fetchone()
+                                            print(f"DEBUG: Customer data: {customer_data}")
+                    
                     with transaction.atomic():
                         with connection.cursor() as cursor:
                             # Check delivery types and set receiving_module accordingly
                             receiving_module = None
                             content_id = None
                             stock_transfer_id = None
+                            customer_id = None  # Added for customer lookup
                             
                             # Check if this is a content_id delivery or stock_transfer
+                            # Also look up sales_order_id for customer lookup
                             cursor.execute("""
-                                SELECT delivery.content_id, delivery.stock_transfer_id
+                                SELECT delivery.content_id, delivery.stock_transfer_id, delivery.sales_order_id
                                 FROM distribution.shipment_details sd
                                 JOIN distribution.packing_list pl ON sd.packing_list_id = pl.packing_list_id
                                 JOIN distribution.picking_list pkl ON pl.picking_list_id = pkl.picking_list_id
@@ -125,6 +222,58 @@ def handle_shipment_status_change(sender, instance, **kwargs):
                             if delivery_result:
                                 content_id = delivery_result[0]
                                 stock_transfer_id = delivery_result[1]
+                                sales_order_id = delivery_result[2]
+                                
+                                # If this is a sales order, look up the customer_id
+                                if sales_order_id:
+                                    print(f"DEBUG: This is a sales order delivery: {sales_order_id}")
+                                    
+                                    # Let's try a direct query approach
+                                    try:
+                                        cursor.execute("""
+                                            SELECT s.customer_id
+                                            FROM sales.orders o
+                                            JOIN sales.statement s ON o.statement_id = s.statement_id
+                                            WHERE o.order_id = %s
+                                        """, [sales_order_id])
+                                        
+                                        customer_result = cursor.fetchone()
+                                        if customer_result and customer_result[0]:
+                                            customer_id = customer_result[0]
+                                            print(f"DEBUG: Found customer_id: {customer_id} for sales_order: {sales_order_id}")
+                                        else:
+                                            print(f"DEBUG: No customer found for sales_order {sales_order_id}")
+                                            
+                                            # Try a step by step approach for debugging
+                                            print(f"DEBUG: Trying step-by-step approach")
+                                            
+                                            # Get the statement_id first
+                                            cursor.execute("""
+                                                SELECT statement_id FROM sales.orders WHERE order_id = %s
+                                            """, [sales_order_id])
+                                            statement_result = cursor.fetchone()
+                                            
+                                            if statement_result and statement_result[0]:
+                                                statement_id = statement_result[0]
+                                                print(f"DEBUG: Found statement_id: {statement_id}")
+                                                
+                                                # Now get the customer_id from the statement
+                                                cursor.execute("""
+                                                    SELECT customer_id FROM sales.statement WHERE statement_id = %s
+                                                """, [statement_id])
+                                                customer_result = cursor.fetchone()
+                                                
+                                                if customer_result and customer_result[0]:
+                                                    customer_id = customer_result[0]
+                                                    print(f"DEBUG: Found customer_id: {customer_id} from statement: {statement_id}")
+                                                else:
+                                                    print(f"DEBUG: No customer_id found in statement {statement_id}")
+                                            else:
+                                                print(f"DEBUG: No statement_id found for order {sales_order_id}")
+                                                
+                                    except Exception as e:
+                                        print(f"DEBUG: Error looking up customer: {str(e)}")
+                                        traceback.print_exc()
                                 
                                 # Case 1: This is a content_id delivery (from operations module)
                                 if content_id:
@@ -149,8 +298,11 @@ def handle_shipment_status_change(sender, instance, **kwargs):
                                     receiving_module = "Inventory"
                                     print(f"Setting receiving_module to: {receiving_module}")
                             
-                            # Now include receiving_module when creating the delivery receipt
+                            # Now include receiving_module and customer_id when creating the delivery receipt
+                            print(f"DEBUG: About to create delivery receipt with customer_id: {customer_id}")
+                            
                             if receiving_module:
+                                print(f"DEBUG: Using receiving_module: {receiving_module}")
                                 cursor.execute("""
                                     INSERT INTO distribution.delivery_receipt
                                     (delivery_date, received_by, signature, receipt_status, shipment_id, receiving_module)
@@ -158,13 +310,14 @@ def handle_shipment_status_change(sender, instance, **kwargs):
                                     RETURNING delivery_receipt_id
                                 """, [
                                     date.today(),
-                                    None,  # received_by will be filled later
+                                    customer_id,  # Now using customer_id instead of None
                                     '',  # Empty signature as requested (cannot be NULL)
                                     'Pending',  # Default receipt_status
                                     instance.shipment_id,
                                     receiving_module
                                 ])
                             else:
+                                print(f"DEBUG: No receiving_module specified")
                                 cursor.execute("""
                                     INSERT INTO distribution.delivery_receipt
                                     (delivery_date, received_by, signature, receipt_status, shipment_id)
@@ -172,7 +325,7 @@ def handle_shipment_status_change(sender, instance, **kwargs):
                                     RETURNING delivery_receipt_id
                                 """, [
                                     date.today(),
-                                    None,  # received_by will be filled later
+                                    customer_id,  # Now using customer_id instead of None
                                     '',  # Empty signature as requested (cannot be NULL)
                                     'Pending',  # Default receipt_status
                                     instance.shipment_id
@@ -181,8 +334,17 @@ def handle_shipment_status_change(sender, instance, **kwargs):
                             result = cursor.fetchone()
                             delivery_receipt_id = result[0] if result else None
                             print(f"Created DeliveryReceipt {delivery_receipt_id} for shipment {instance.shipment_id}")
+                            if customer_id:
+                                print(f"  - With customer_id: {customer_id}")
                             if receiving_module:
                                 print(f"  - With receiving_module: {receiving_module}")
+                            
+                            # After creation, verify the customer_id was properly set
+                            cursor.execute("""
+                                SELECT received_by FROM distribution.delivery_receipt WHERE delivery_receipt_id = %s
+                            """, [delivery_receipt_id])
+                            verify_result = cursor.fetchone()
+                            print(f"DEBUG: Verification - received_by in new delivery receipt: {verify_result[0] if verify_result else None}")
             
             # Update associated PackingList status to 'Shipped'
             try:
