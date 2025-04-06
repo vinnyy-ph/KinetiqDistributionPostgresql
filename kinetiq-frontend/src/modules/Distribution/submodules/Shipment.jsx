@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import "../styles/Shipment.css";
 import ShipmentTable from "../components/shipment/ShipmentTable";
+import FailedShipmentsTable from "../components/shipment/FailedShipmentsTable";
 import StatusFilter from "../components/shipment/StatusFilter";
 import CarrierFilter from "../components/shipment/CarrierFilter";
 import DeliveryTypeFilter from "../components/shipment/DeliveryTypeFilter";
@@ -11,8 +12,12 @@ import DeliveryReceiptModal from "../components/shipment/DeliveryReceiptModal";
 import FailureReportModal from "../components/shipment/FailureReportModal";
 
 const Shipment = () => {
+  // New tab state
+  const [activeTab, setActiveTab] = useState("shipments"); // "shipments" or "failed"
+  
   // State for data management
   const [shipments, setShipments] = useState([]);
+  const [failedShipments, setFailedShipments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [carriers, setCarriers] = useState([]);
@@ -49,7 +54,13 @@ const Shipment = () => {
         }
         
         const data = await response.json();
-        setShipments(data);
+        
+        // Separate regular shipments and failed shipments
+        const failed = data.filter(s => s.shipment_status === 'Failed');
+        const regular = data.filter(s => s.shipment_status !== 'Failed');
+        
+        setShipments(regular);
+        setFailedShipments(failed);
         setLoading(false);
       } catch (err) {
         setError(err.message);
@@ -77,6 +88,11 @@ const Shipment = () => {
     fetchShipments();
     fetchCarriers();
   }, [refreshTrigger]);
+  
+  // Handle tab change
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+  };
   
   // Handle search input change
   const handleSearchChange = (e) => {
@@ -117,6 +133,19 @@ const Shipment = () => {
       return false;
     }
     
+    // Apply search filter (search by shipment_id, tracking_number, or delivery_id)
+    if (searchTerm && 
+        !shipment.shipment_id.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !shipment.tracking_number.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !String(shipment.delivery_id || '').toLowerCase().includes(searchTerm.toLowerCase())) {
+      return false;
+    }
+    
+    return true;
+  });
+  
+  // Apply only search filter to failed shipments
+  const filteredFailedShipments = failedShipments.filter(shipment => {
     // Apply search filter (search by shipment_id, tracking_number, or delivery_id)
     if (searchTerm && 
         !shipment.shipment_id.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -279,74 +308,127 @@ const Shipment = () => {
     }
   };
   
+  // Calculate stats for the shipments tab
+  const shipmentStats = {
+    total: shipments.length,
+    pending: shipments.filter(shipment => shipment.shipment_status === 'Pending').length,
+    shipped: shipments.filter(shipment => shipment.shipment_status === 'Shipped').length,
+    delivered: shipments.filter(shipment => shipment.shipment_status === 'Delivered').length
+  };
+  
+  // Calculate stats for the failed shipments tab
+  const failedStats = {
+    total: failedShipments.length,
+    pending: failedShipments.filter(shipment => 
+      shipment.failed_shipment_info?.resolution_status === 'Pending').length,
+    inProgress: failedShipments.filter(shipment => 
+      shipment.failed_shipment_info?.resolution_status === 'In Progress').length,
+    resolved: failedShipments.filter(shipment => 
+      shipment.failed_shipment_info?.resolution_status === 'Resolved').length
+  };
+  
   return (
     <div className="shipment">
       <div className="body-content-container">
         <h2 className="page-title">Shipment Management</h2>
         
-        {/* Filters Row */}
+        {/* Tab Navigation */}
+        <div className="tab-navigation">
+          <div 
+            className={`tab ${activeTab === "shipments" ? "active" : ""}`}
+            onClick={() => handleTabChange("shipments")}
+          >
+            Active Shipments
+          </div>
+          <div 
+            className={`tab ${activeTab === "failed" ? "active" : ""}`}
+            onClick={() => handleTabChange("failed")}
+          >
+            Failed Shipments
+          </div>
+        </div>
+        
+        {/* Filters Row - slightly different for each tab */}
         <div className="filters-row">
           <div className="search-container">
             <span className="search-icon">🔍</span>
             <input
               type="text"
               className="search-input"
-              placeholder="Search by Shipment ID, Tracking #, or Delivery ID..."
+              placeholder={activeTab === "shipments" 
+                ? "Search by Shipment ID, Tracking #, or Delivery ID..." 
+                : "Search failed shipments..."}
               value={searchTerm}
               onChange={handleSearchChange}
             />
           </div>
           
-          <StatusFilter 
-            selectedStatus={statusFilter}
-            onStatusChange={handleStatusFilterChange}
-          />
-          
-          <CarrierFilter 
-            carriers={carriers}
-            selectedCarrier={carrierFilter}
-            onCarrierChange={handleCarrierFilterChange}
-          />
-          
-          <DeliveryTypeFilter 
-            selectedType={deliveryTypeFilter}
-            onTypeChange={handleDeliveryTypeFilterChange}
-          />
+          {/* Only show these filters in the Shipments tab */}
+          {activeTab === "shipments" && (
+            <>
+              <StatusFilter 
+                selectedStatus={statusFilter}
+                onStatusChange={handleStatusFilterChange}
+              />
+              
+              <CarrierFilter 
+                carriers={carriers}
+                selectedCarrier={carrierFilter}
+                onCarrierChange={handleCarrierFilterChange}
+              />
+              
+              <DeliveryTypeFilter 
+                selectedType={deliveryTypeFilter}
+                onTypeChange={handleDeliveryTypeFilterChange}
+              />
+            </>
+          )}
         </div>
         
-        {/* Statistics Row */}
+        {/* Statistics Row - different stats for each tab */}
         <div className="stats-row">
-          <div className="stat-box">
-            <span className="stat-label">Total Shipments:</span>
-            <span className="stat-value">{shipments.length}</span>
-          </div>
-          <div className="stat-box">
-            <span className="stat-label">Pending:</span>
-            <span className="stat-value">
-              {shipments.filter(shipment => shipment.shipment_status === 'Pending').length}
-            </span>
-          </div>
-          <div className="stat-box">
-            <span className="stat-label">Shipped:</span>
-            <span className="stat-value">
-              {shipments.filter(shipment => shipment.shipment_status === 'Shipped').length}
-            </span>
-          </div>
-          <div className="stat-box">
-            <span className="stat-label">Delivered:</span>
-            <span className="stat-value">
-              {shipments.filter(shipment => shipment.shipment_status === 'Delivered').length}
-            </span>
-          </div>
-          <div className="stat-box">
-            <span className="stat-label">Failed:</span>
-            <span className="stat-value">
-              {shipments.filter(shipment => shipment.shipment_status === 'Failed').length}
-            </span>
-          </div>
+          {activeTab === "shipments" ? (
+            <>
+              <div className="stat-box">
+                <span className="stat-label">Total Shipments:</span>
+                <span className="stat-value">{shipmentStats.total}</span>
+              </div>
+              <div className="stat-box">
+                <span className="stat-label">Pending:</span>
+                <span className="stat-value">{shipmentStats.pending}</span>
+              </div>
+              <div className="stat-box">
+                <span className="stat-label">Shipped:</span>
+                <span className="stat-value">{shipmentStats.shipped}</span>
+              </div>
+              <div className="stat-box">
+                <span className="stat-label">Delivered:</span>
+                <span className="stat-value">{shipmentStats.delivered}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="stat-box">
+                <span className="stat-label">Failed Shipments:</span>
+                <span className="stat-value">{failedStats.total}</span>
+              </div>
+              <div className="stat-box">
+                <span className="stat-label">Pending Resolution:</span>
+                <span className="stat-value">{failedStats.pending}</span>
+              </div>
+              <div className="stat-box">
+                <span className="stat-label">In Progress:</span>
+                <span className="stat-value">{failedStats.inProgress}</span>
+              </div>
+              <div className="stat-box">
+                <span className="stat-label">Resolved:</span>
+                <span className="stat-value">{failedStats.resolved}</span>
+              </div>
+            </>
+          )}
         </div>
         
-        {/* Shipment Table */}
+        {/* Content based on active tab */}
         {loading ? (
           <div className="loading-container">
             <div className="spinner"></div>
@@ -358,16 +440,25 @@ const Shipment = () => {
           </div>
         ) : (
           <div className="shipment-content">
-            <ShipmentTable 
-              shipments={filteredShipments} 
-              onShipmentSelect={handleShipmentSelect} 
-              selectedShipment={selectedShipment}
-              carriers={carriers}
-            />
+            {activeTab === "shipments" ? (
+              <ShipmentTable 
+                shipments={filteredShipments} 
+                onShipmentSelect={handleShipmentSelect} 
+                selectedShipment={selectedShipment}
+                carriers={carriers}
+              />
+            ) : (
+              <FailedShipmentsTable 
+                failedShipments={filteredFailedShipments}
+                onShipmentSelect={handleShipmentSelect}
+                selectedShipment={selectedShipment}
+                carriers={carriers}
+              />
+            )}
           </div>
         )}
         
-        {/* Shipment Details Modal */}
+        {/* Modals - these stay the same */}
         {showShipmentModal && selectedShipment && (
           <ShipmentModal 
             shipment={selectedShipment}
@@ -380,7 +471,6 @@ const Shipment = () => {
           />
         )}
         
-        {/* Confirm Ship Modal */}
         {showConfirmShipModal && selectedShipment && (
           <ConfirmShipModal 
             shipment={selectedShipment}
@@ -389,7 +479,6 @@ const Shipment = () => {
           />
         )}
         
-        {/* Delivery Receipt Modal */}
         {showDeliveryReceiptModal && selectedShipment && (
           <DeliveryReceiptModal 
             shipment={selectedShipment}
@@ -398,7 +487,6 @@ const Shipment = () => {
           />
         )}
         
-        {/* Failure Report Modal */}
         {showFailureReportModal && selectedShipment && (
           <FailureReportModal 
             shipment={selectedShipment}
