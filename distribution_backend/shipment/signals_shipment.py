@@ -423,14 +423,44 @@ def handle_shipment_status_change(sender, instance, **kwargs):
                                     receiving_module = "Inventory"
                                     print(f"Setting receiving_module to: {receiving_module}")
                             
-                            # Now include receiving_module and customer_id when creating the delivery receipt
+                            # Get the operational cost for this shipment to set as delivery fee
+                            cursor.execute("""
+                                SELECT oc.total_operational_cost
+                                FROM distribution.shipment_details sd
+                                LEFT JOIN distribution.shipping_cost sc ON sd.shipping_cost_id = sc.shipping_cost_id
+                                LEFT JOIN distribution.operational_cost oc ON sc.shipping_cost_id = oc.shipping_cost_id
+                                WHERE sd.shipment_id = %s
+                            """, [instance.shipment_id])
+                            
+                            op_cost_result = cursor.fetchone()
+                            total_operational_cost = op_cost_result[0] if op_cost_result and op_cost_result[0] else None
+                            
+                            print(f"DEBUG: Retrieved operational cost: {total_operational_cost} for delivery fee")
+                            
+                            # Now include receiving_module, customer_id, and total_amount when creating the delivery receipt
                             print(f"DEBUG: About to create delivery receipt with customer_id: {customer_id}")
                             
                             if receiving_module:
                                 print(f"DEBUG: Using receiving_module: {receiving_module}")
                                 cursor.execute("""
                                     INSERT INTO distribution.delivery_receipt
-                                    (delivery_date, received_by, signature, receipt_status, shipment_id, receiving_module)
+                                    (delivery_date, received_by, signature, receipt_status, shipment_id, receiving_module, total_amount)
+                                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                    RETURNING delivery_receipt_id
+                                """, [
+                                    date.today(),
+                                    customer_id,  # Now using customer_id instead of None
+                                    '',  # Empty signature as requested (cannot be NULL)
+                                    'Pending',  # Default receipt_status
+                                    instance.shipment_id,
+                                    receiving_module,
+                                    total_operational_cost  # Set delivery fee from operational cost
+                                ])
+                            else:
+                                print(f"DEBUG: No receiving_module specified")
+                                cursor.execute("""
+                                    INSERT INTO distribution.delivery_receipt
+                                    (delivery_date, received_by, signature, receipt_status, shipment_id, total_amount)
                                     VALUES (%s, %s, %s, %s, %s, %s)
                                     RETURNING delivery_receipt_id
                                 """, [
@@ -439,21 +469,7 @@ def handle_shipment_status_change(sender, instance, **kwargs):
                                     '',  # Empty signature as requested (cannot be NULL)
                                     'Pending',  # Default receipt_status
                                     instance.shipment_id,
-                                    receiving_module
-                                ])
-                            else:
-                                print(f"DEBUG: No receiving_module specified")
-                                cursor.execute("""
-                                    INSERT INTO distribution.delivery_receipt
-                                    (delivery_date, received_by, signature, receipt_status, shipment_id)
-                                    VALUES (%s, %s, %s, %s, %s)
-                                    RETURNING delivery_receipt_id
-                                """, [
-                                    date.today(),
-                                    customer_id,  # Now using customer_id instead of None
-                                    '',  # Empty signature as requested (cannot be NULL)
-                                    'Pending',  # Default receipt_status
-                                    instance.shipment_id
+                                    total_operational_cost  # Set delivery fee from operational cost
                                 ])
                             
                             result = cursor.fetchone()
@@ -463,13 +479,16 @@ def handle_shipment_status_change(sender, instance, **kwargs):
                                 print(f"  - With customer_id: {customer_id}")
                             if receiving_module:
                                 print(f"  - With receiving_module: {receiving_module}")
+                            if total_operational_cost:
+                                print(f"  - With delivery fee (total_amount): {total_operational_cost}")
                             
                             # After creation, verify the customer_id was properly set
                             cursor.execute("""
-                                SELECT received_by FROM distribution.delivery_receipt WHERE delivery_receipt_id = %s
+                                SELECT received_by, total_amount FROM distribution.delivery_receipt WHERE delivery_receipt_id = %s
                             """, [delivery_receipt_id])
                             verify_result = cursor.fetchone()
                             print(f"DEBUG: Verification - received_by in new delivery receipt: {verify_result[0] if verify_result else None}")
+                            print(f"DEBUG: Verification - total_amount in new delivery receipt: {verify_result[1] if verify_result and len(verify_result) > 1 else None}")
             
             # Update associated PackingList status to 'Shipped'
             try:
