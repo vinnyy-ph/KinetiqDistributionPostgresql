@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 
 const DeliveryTable = ({ deliveries, searchTerm, statusFilter, deliveryType }) => {
   // State for table management
@@ -7,6 +8,9 @@ const DeliveryTable = ({ deliveries, searchTerm, statusFilter, deliveryType }) =
   const [itemsPerPage] = useState(9);
   const [sortField, setSortField] = useState("del_order_id");
   const [sortDirection, setSortDirection] = useState("asc");
+
+  // Add loading state for approval process QA PURPOSES
+  const [approving, setApproving] = useState(null);
 
   // Apply filters and sorting whenever dependencies change
   useEffect(() => {
@@ -86,6 +90,34 @@ const DeliveryTable = ({ deliveries, searchTerm, statusFilter, deliveryType }) =
     
     return id;
   };
+ 
+  // TEMPORARY: Function to handle delivery order approval QA PURPOSES PUTANGINA
+  const handleApprove = async (delOrderId) => {
+    try {
+      setApproving(delOrderId);
+      
+      // Send approval request to backend
+      await axios.post('http://127.0.0.1:8000/api/approve-order/', { del_order_id: delOrderId });
+      
+      // Update the order status in the local state (optimistic update)
+      const updatedDeliveries = filteredDeliveries.map(order => {
+        if (order.del_order_id === delOrderId) {
+          return { ...order, order_status: 'Approved' };
+        }
+        return order;
+      });
+      
+      setFilteredDeliveries(updatedDeliveries);
+      setApproving(null);
+      
+      // Show success message
+      alert(`Order ${delOrderId} has been approved for testing purposes.`);
+    } catch (error) {
+      console.error("Error approving order:", error);
+      setApproving(null);
+      alert(`Failed to approve order: ${error.message}`);
+    }
+    };
   
   return (
     <div className="delivery-table-container">
@@ -122,6 +154,8 @@ const DeliveryTable = ({ deliveries, searchTerm, statusFilter, deliveryType }) =
                  deliveryType === 'content' ? 'Content ID' : 
                  'Stock Transfer ID'}
               </th>
+              {/* TEMPORARY: Approval column - Comment this line to hide the column */}
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -143,11 +177,26 @@ const DeliveryTable = ({ deliveries, searchTerm, statusFilter, deliveryType }) =
                       ? formatID(order.content_id, "content") : 
                       formatID(order.stock_transfer_id, "stock")}
                   </td>
+                  
+                  {/* TEMPORARY: Approval button - Comment these lines to remove the button */}
+                  <td>
+                    {order.order_status !== 'Approved' ? (
+                      <button
+                        onClick={() => handleApprove(order.del_order_id)}
+                        disabled={approving === order.del_order_id}
+                        className="approve-button"
+                      >
+                        {approving === order.del_order_id ? 'Approving...' : 'Approve'}
+                      </button>
+                    ) : (
+                      <span className="approved-text">Approved</span>
+                    )}
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="5" className="no-data">
+                <td colSpan="6" className="no-data"> {/* Update colspan to match column count */}
                   No {deliveryType} delivery orders found
                 </td>
               </tr>

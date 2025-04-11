@@ -1,9 +1,13 @@
 // components/shipment/FailedShipmentsTable.jsx
 import React, { useState } from 'react';
 
-const FailedShipmentsTable = ({ failedShipments, onShipmentSelect, selectedShipment, carriers }) => {
+const FailedShipmentsTable = ({ failedShipments, onShipmentSelect, selectedShipment, carriers, employees, getEmployeeFullName }) => {
   const [sortField, setSortField] = useState('failure_date');
   const [sortDirection, setSortDirection] = useState('desc');
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(9);
   
   // Handle sort change
   const handleSort = (field) => {
@@ -15,12 +19,17 @@ const FailedShipmentsTable = ({ failedShipments, onShipmentSelect, selectedShipm
       setSortField(field);
       setSortDirection('asc');
     }
+    // Reset to first page when sorting changes
+    setCurrentPage(1);
   };
   
   // Get carrier name by ID
   const getCarrierName = (carrierId) => {
     const carrier = carriers.find(c => c.carrier_id === carrierId);
-    return carrier ? carrier.carrier_name : 'Not Assigned';
+    if (carrier) {
+      return carrier.employee_name || carrier.carrier_name;
+    }
+    return 'Not Assigned';
   };
   
   // Format date
@@ -108,6 +117,12 @@ const FailedShipmentsTable = ({ failedShipments, onShipmentSelect, selectedShipm
       : b[sortField] - a[sortField];
   });
   
+  // Calculate pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = sortedShipments.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sortedShipments.length / itemsPerPage);
+  
   // Get row class
   const getRowClass = (shipment, index) => {
     let classes = [];
@@ -147,7 +162,10 @@ const FailedShipmentsTable = ({ failedShipments, onShipmentSelect, selectedShipm
   return (
     <div className="shipment-table-container">
       <div className="table-metadata">
-        <span>{sortedShipments.length} failed shipments found</span>
+        <span className="record-count">{sortedShipments.length} failed shipments found</span>
+        <span className="pagination-info">
+          Page {currentPage} of {totalPages || 1}
+        </span>
       </div>
       
       <div className="table-wrapper">
@@ -193,8 +211,8 @@ const FailedShipmentsTable = ({ failedShipments, onShipmentSelect, selectedShipm
             </tr>
           </thead>
           <tbody>
-            {sortedShipments.length > 0 ? (
-              sortedShipments.map((shipment, index) => {
+            {currentItems.length > 0 ? (
+              currentItems.map((shipment, index) => {
                 const failureInfo = getFailureInfo(shipment);
                 return (
                   <tr 
@@ -227,6 +245,50 @@ const FailedShipmentsTable = ({ failedShipments, onShipmentSelect, selectedShipm
           </tbody>
         </table>
       </div>
+      
+      {/* Pagination controls */}
+      {totalPages > 1 && (
+        <div className="pagination-controls">
+          <button
+            className="pagination-button"
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          
+          <div className="page-numbers">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              // Logic to show relevant page numbers around current page
+              const pageNum = totalPages <= 5 
+                ? i + 1
+                : currentPage <= 3
+                  ? i + 1
+                  : currentPage >= totalPages - 2
+                    ? totalPages - 4 + i
+                    : currentPage - 2 + i;
+              
+              return (
+                <button
+                  key={pageNum}
+                  className={`page-number ${currentPage === pageNum ? 'active' : ''}`}
+                  onClick={() => setCurrentPage(pageNum)}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+          
+          <button
+            className="pagination-button"
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 };

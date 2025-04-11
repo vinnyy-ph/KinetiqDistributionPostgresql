@@ -1,7 +1,7 @@
 // components/shipment/CarrierFilter.jsx
 import React from 'react';
 
-const CarrierFilter = ({ carriers, selectedCarrier, onCarrierChange }) => {
+const CarrierFilter = ({ carriers, employees, selectedCarrier, onCarrierChange, getEmployeeFullName }) => {
   return (
     <div className="filter-container">
       <span className="filter-label">Carrier:</span>
@@ -15,7 +15,7 @@ const CarrierFilter = ({ carriers, selectedCarrier, onCarrierChange }) => {
         
         {carriers.map(carrier => (
           <option key={carrier.carrier_id} value={carrier.carrier_id}>
-            {carrier.carrier_name}
+            {getEmployeeFullName(carrier.carrier_name)}
           </option>
         ))}
       </select>

@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 const ShipmentModal = ({ 
   shipment, 
   carriers, 
+  employees,               
+  getEmployeeFullName,     
   onClose, 
   onSave, 
   onShip,
@@ -185,7 +187,7 @@ const ShipmentModal = ({
                   <option value="">-- Select Carrier --</option>
                   {carriers.map(carrier => (
                     <option key={carrier.carrier_id} value={carrier.carrier_id}>
-                      {carrier.carrier_name} - {carrier.service_type || 'Standard'}
+                      {getEmployeeFullName(carrier.carrier_name)} - {carrier.service_type || 'Standard'}
                     </option>
                   ))}
                 </select>

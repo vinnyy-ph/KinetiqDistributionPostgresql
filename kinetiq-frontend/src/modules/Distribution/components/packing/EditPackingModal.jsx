@@ -1,4 +1,3 @@
-// components/packing/EditPackingModal.jsx
 import React, { useState, useEffect } from "react";
 
 const EditPackingModal = ({ packingList, employees, packingTypes, onClose, onSave, onStatusUpdate }) => {
@@ -10,6 +9,9 @@ const EditPackingModal = ({ packingList, employees, packingTypes, onClose, onSav
     labor_cost: 0,
     total_packing_cost: 0
   });
+  
+  // Check if packing list is shipped (final state)
+  const isShipped = packingList?.packing_status === 'Shipped';
   
   // Load packing cost data from packingList when modal opens
   useEffect(() => {
@@ -24,6 +26,9 @@ const EditPackingModal = ({ packingList, employees, packingTypes, onClose, onSav
   
   // Handle input changes
   const handleInputChange = (field, value) => {
+    // Don't update if shipped
+    if (isShipped) return;
+    
     setEditedValues(prev => ({
       ...prev,
       [field]: value
@@ -32,6 +37,9 @@ const EditPackingModal = ({ packingList, employees, packingTypes, onClose, onSav
   
   // Handle cost input changes
   const handleCostChange = (field, value) => {
+    // Don't update if shipped
+    if (isShipped) return;
+    
     const numericValue = parseFloat(value);
     
     // Update local state for display
@@ -56,6 +64,7 @@ const EditPackingModal = ({ packingList, employees, packingTypes, onClose, onSav
   
   // Handle save button click
   const handleSave = () => {
+    if (isShipped) return;
     onSave(packingList, editedValues);
   };
   
@@ -103,19 +112,40 @@ const EditPackingModal = ({ packingList, employees, packingTypes, onClose, onSav
   
   // Handle status update button click
   const handleStatusUpdate = () => {
+    if (isShipped) return;
+    
     const nextStatus = getNextStatus();
     if (nextStatus) {
       onStatusUpdate(packingList, nextStatus);
     }
   };
   
+  // Get employee name from ID
+  const getEmployeeName = (employeeId) => {
+    const employee = employees.find(emp => emp.employee_id === employeeId);
+    return employee ? employee.full_name : 'Not assigned';
+  };
+  
+  // Get packing type name from ID
+  const getPackingTypeName = (typeId) => {
+    const packingType = packingTypes.find(type => type.id === typeId);
+    return packingType ? packingType.name : 'Not specified';
+  };
+  
   return (
     <div className="modal-overlay">
       <div className="edit-packing-modal">
         <div className="modal-header">
-          <h3>Edit Packing List</h3>
+          <h3>{isShipped ? 'View Packing List' : 'Edit Packing List'}</h3>
           <button className="close-button" onClick={onClose}>×</button>
         </div>
+        
+        {isShipped && (
+          <div className="completed-notification">
+            <span className="info-icon">ℹ</span>
+            This packing list has been shipped and cannot be modified.
+          </div>
+        )}
         
         <div className="modal-body">
           {/* Basic Information */}
@@ -181,74 +211,113 @@ const EditPackingModal = ({ packingList, employees, packingTypes, onClose, onSav
           {/* Packing Assignment Section */}
           <div className="edit-section">
             <h4>Assign Packer</h4>
-            <div className="employee-selection">
-              <select
-                className="employee-dropdown"
-                value={editedValues.packed_by || packingList.packed_by || ''}
-                onChange={(e) => handleInputChange('packed_by', e.target.value)}
-              >
-                <option value="">-- Select Employee --</option>
-                {employees.map((employee) => (
-                  <option key={employee.employee_id} value={employee.employee_id}>
-                    {employee.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {isShipped ? (
+              <div className="employee-display">
+                <span className="employee-value">
+                  {getEmployeeName(packingList.packed_by)}
+                </span>
+              </div>
+            ) : (
+              <div className="employee-selection">
+                <select
+                  className="employee-dropdown"
+                  value={editedValues.packed_by || packingList.packed_by || ''}
+                  onChange={(e) => handleInputChange('packed_by', e.target.value)}
+                  disabled={isShipped}
+                >
+                  <option value="">-- Select Employee --</option>
+                  {employees.map((employee) => (
+                    <option key={employee.employee_id} value={employee.employee_id}>
+                      {employee.full_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
           
           {/* Packing Type Section */}
           <div className="edit-section">
             <h4>Packing Type</h4>
-            <div className="packing-type-selection">
-              <select
-                className="packing-type-dropdown"
-                value={editedValues.packing_type || packingList.packing_type || ''}
-                onChange={(e) => handleInputChange('packing_type', e.target.value)}
-              >
-                <option value="">-- Select Packing Type --</option>
-                {packingTypes.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {isShipped ? (
+              <div className="packing-type-display">
+                <span className="packing-type-value">
+                  {getPackingTypeName(packingList.packing_type)}
+                </span>
+              </div>
+            ) : (
+              <div className="packing-type-selection">
+                <select
+                  className="packing-type-dropdown"
+                  value={editedValues.packing_type || packingList.packing_type || ''}
+                  onChange={(e) => handleInputChange('packing_type', e.target.value)}
+                  disabled={isShipped}
+                >
+                  <option value="">-- Select Packing Type --</option>
+                  {packingTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
           
           {/* Packing Cost Section */}
           <div className="edit-section">
             <h4>Packing Costs</h4>
-            <div className="cost-editing">
-              <div className="cost-input-row">
-                <label className="cost-label">Material Cost:</label>
-                <input
-                  type="number"
-                  className="cost-input"
-                  value={packingCost.material_cost}
-                  onChange={(e) => handleCostChange('material_cost', e.target.value)}
-                  step="0.01"
-                  min="0"
-                />
+            {isShipped ? (
+              <div className="cost-display">
+                <div className="cost-info-row">
+                  <span className="cost-label">Material Cost:</span>
+                  <span className="cost-value">{formatCurrency(packingCost.material_cost)}</span>
+                </div>
+                <div className="cost-info-row">
+                  <span className="cost-label">Labor Cost:</span>
+                  <span className="cost-value">{formatCurrency(packingCost.labor_cost)}</span>
+                </div>
+                <div className="cost-total-row">
+                  <span className="cost-total-label">Total Cost:</span>
+                  <span className="cost-total-value">
+                    {formatCurrency(packingCost.total_packing_cost)}
+                  </span>
+                </div>
               </div>
-              <div className="cost-input-row">
-                <label className="cost-label">Labor Cost:</label>
-                <input
-                  type="number"
-                  className="cost-input"
-                  value={packingCost.labor_cost}
-                  onChange={(e) => handleCostChange('labor_cost', e.target.value)}
-                  step="0.01"
-                  min="0"
-                />
+            ) : (
+              <div className="cost-editing">
+                <div className="cost-input-row">
+                  <label className="cost-label">Material Cost:</label>
+                  <input
+                    type="number"
+                    className="cost-input"
+                    value={packingCost.material_cost}
+                    onChange={(e) => handleCostChange('material_cost', e.target.value)}
+                    step="0.01"
+                    min="0"
+                    disabled={isShipped}
+                  />
+                </div>
+                <div className="cost-input-row">
+                  <label className="cost-label">Labor Cost:</label>
+                  <input
+                    type="number"
+                    className="cost-input"
+                    value={packingCost.labor_cost}
+                    onChange={(e) => handleCostChange('labor_cost', e.target.value)}
+                    step="0.01"
+                    min="0"
+                    disabled={isShipped}
+                  />
+                </div>
+                <div className="cost-total-row">
+                  <span className="cost-total-label">Total Cost:</span>
+                  <span className="cost-total-value">
+                    {formatCurrency(packingCost.total_packing_cost)}
+                  </span>
+                </div>
               </div>
-              <div className="cost-total-row">
-                <span className="cost-total-label">Total Cost:</span>
-                <span className="cost-total-value">
-                  {formatCurrency(packingCost.total_packing_cost)}
-                </span>
-              </div>
-            </div>
+            )}
           </div>
           
           {/* Status Update Button */}
@@ -265,24 +334,26 @@ const EditPackingModal = ({ packingList, employees, packingTypes, onClose, onSav
           )}
           
           {/* Already shipped indicator */}
-          {packingList.packing_status === 'Shipped' && (
+          {isShipped && (
             <div className="shipped-message">
-              This packing list has been marked as shipped and cannot be modified further.
+              <span className="info-text">This packing list was shipped on {new Date(packingList.shipping_date || packingList.updated_at).toLocaleDateString()}.</span>
             </div>
           )}
         </div>
         
         <div className="modal-footer">
           <button className="cancel-button" onClick={onClose}>
-            Cancel
+            {isShipped ? 'Close' : 'Cancel'}
           </button>
-          <button
-            className="save-button"
-            onClick={handleSave}
-            disabled={!hasChanges() || packingList.packing_status === 'Shipped'}
-          >
-            Save Changes
-          </button>
+          {!isShipped && (
+            <button
+              className="save-button"
+              onClick={handleSave}
+              disabled={!hasChanges() || isShipped}
+            >
+              Save Changes
+            </button>
+          )}
         </div>
       </div>
     </div>

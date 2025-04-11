@@ -22,6 +22,7 @@ const Shipment = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [carriers, setCarriers] = useState([]);
+  const [employees, setEmployees] = useState([]); // Added state for employees
   
   // State for filtering
   const [statusFilter, setStatusFilter] = useState("All");
@@ -87,9 +88,33 @@ const Shipment = () => {
       }
     };
 
+    // Added function to fetch employees
+    const fetchEmployees = async () => {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/employees/');
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Failed to fetch employees');
+        }
+        
+        const data = await response.json();
+        setEmployees(data);
+      } catch (err) {
+        console.error('Error fetching employees:', err);
+      }
+    };
+
     fetchShipments();
     fetchCarriers();
+    fetchEmployees(); // Fetch employees data
   }, [refreshTrigger]);
+  
+  // Get employee full name by employee id
+  const getEmployeeFullName = (employeeId) => {
+    const employee = employees.find(emp => emp.employee_id === employeeId);
+    return employee ? employee.full_name : employeeId; // Fallback to ID if employee not found
+  };
   
   // Handle tab change
   const handleTabChange = (tab) => {
@@ -125,8 +150,7 @@ const Shipment = () => {
     
     // Apply carrier filter (carrier_id or carrier_name)
     if (carrierFilter !== "All" && 
-        shipment.carrier_id !== carrierFilter && 
-        shipment.carrier_name !== carrierFilter) {
+        shipment.carrier_id !== carrierFilter) {
       return false;
     }
     
@@ -380,8 +404,10 @@ const Shipment = () => {
               
               <CarrierFilter 
                 carriers={carriers}
+                employees={employees}
                 selectedCarrier={carrierFilter}
                 onCarrierChange={handleCarrierFilterChange}
+                getEmployeeFullName={getEmployeeFullName}
               />
               
               <DeliveryTypeFilter 
@@ -462,6 +488,8 @@ const Shipment = () => {
                 onShipmentSelect={handleShipmentSelect} 
                 selectedShipment={selectedShipment}
                 carriers={carriers}
+                employees={employees}
+                getEmployeeFullName={getEmployeeFullName}
               />
             ) : (
               <FailedShipmentsTable 
@@ -469,6 +497,8 @@ const Shipment = () => {
                 onShipmentSelect={handleShipmentSelect}
                 selectedShipment={selectedShipment}
                 carriers={carriers}
+                employees={employees}
+                getEmployeeFullName={getEmployeeFullName}
               />
             )}
           </div>
@@ -479,6 +509,8 @@ const Shipment = () => {
           <ShipmentModal 
             shipment={selectedShipment}
             carriers={carriers}
+            employees={employees}
+            getEmployeeFullName={getEmployeeFullName}
             onClose={handleCloseShipmentModal}
             onSave={handleSaveChanges}
             onShip={handleShipStatusUpdate}
@@ -514,6 +546,7 @@ const Shipment = () => {
         {showCarrierManagementModal && (
           <CarrierManagementModal 
             carriers={carriers}
+            employees={employees}
             refreshCarriers={refreshCarriers}
             onClose={() => setShowCarrierManagementModal(false)}
           />

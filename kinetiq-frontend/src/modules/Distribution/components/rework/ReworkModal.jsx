@@ -42,7 +42,7 @@ const ReworkModal = ({ rework, employees, onClose, onAssign, onComplete }) => {
               </div>
               <div className="info-item">
                 <span className="info-label">Status</span>
-                <span className={`info-value status-${rework.rework_status.toLowerCase().replace(' ', '-')}`}>
+                <span className={`info-value status-${rework.rework_status}`}>
                   {rework.rework_status}
                 </span>
               </div>

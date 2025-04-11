@@ -73,7 +73,7 @@ const ReworkTable = ({
                     )}
                   </td>
                   <td>
-                    <span className={`status-cell status-${rework.rework_status.toLowerCase().replace(' ', '-')}`}>
+                    <span className={`status-cell status-${rework.rework_status}`}>
                       {rework.rework_status}
                     </span>
                   </td>

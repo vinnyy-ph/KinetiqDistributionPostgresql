@@ -1,9 +1,13 @@
 // components/shipment/ShipmentTable.jsx
 import React, { useState } from 'react';
 
-const ShipmentTable = ({ shipments, onShipmentSelect, selectedShipment, carriers }) => {
+const ShipmentTable = ({ shipments, onShipmentSelect, selectedShipment, carriers, employees, getEmployeeFullName }) => {
   const [sortField, setSortField] = useState('shipment_id');
   const [sortDirection, setSortDirection] = useState('asc');
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(7);
   
   // Handle sort change
   const handleSort = (field) => {
@@ -15,12 +19,17 @@ const ShipmentTable = ({ shipments, onShipmentSelect, selectedShipment, carriers
       setSortField(field);
       setSortDirection('asc');
     }
+    // Reset to first page when sorting changes
+    setCurrentPage(1);
   };
   
   // Get carrier name by ID
   const getCarrierName = (carrierId) => {
     const carrier = carriers.find(c => c.carrier_id === carrierId);
-    return carrier ? carrier.carrier_name : 'Not Assigned';
+    if (!carrier) return 'Not Assigned';
+    
+    // Use the getEmployeeFullName function to get the employee's full name
+    return getEmployeeFullName(carrier.carrier_name);
   };
   
   // Format date
@@ -53,6 +62,19 @@ const ShipmentTable = ({ shipments, onShipmentSelect, selectedShipment, carriers
         : dateB - dateA;
     }
     
+    // For carrier_id, sort by employee name
+    if (sortField === 'carrier_id') {
+      const carrierA = carriers.find(c => c.carrier_id === a.carrier_id);
+      const carrierB = carriers.find(c => c.carrier_id === b.carrier_id);
+      
+      const nameA = carrierA ? getEmployeeFullName(carrierA.carrier_name).toLowerCase() : '';
+      const nameB = carrierB ? getEmployeeFullName(carrierB.carrier_name).toLowerCase() : '';
+      
+      return sortDirection === 'asc'
+        ? nameA.localeCompare(nameB)
+        : nameB.localeCompare(nameA);
+    }
+
     // For strings
     if (typeof a[sortField] === 'string') {
       const valueA = a[sortField].toLowerCase();
@@ -68,6 +90,12 @@ const ShipmentTable = ({ shipments, onShipmentSelect, selectedShipment, carriers
       ? a[sortField] - b[sortField]
       : b[sortField] - a[sortField];
   });
+  
+  // Calculate pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = sortedShipments.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sortedShipments.length / itemsPerPage);
   
   // Get status class
   const getStatusClass = (status) => {
@@ -109,7 +137,10 @@ const ShipmentTable = ({ shipments, onShipmentSelect, selectedShipment, carriers
   return (
     <div className="shipment-table-container">
       <div className="table-metadata">
-        <span>{sortedShipments.length} shipments found</span>
+        <span className="record-count">{sortedShipments.length} shipments found</span>
+        <span className="pagination-info">
+          Page {currentPage} of {totalPages || 1}
+        </span>
       </div>
       
       <div className="table-wrapper">
@@ -161,8 +192,8 @@ const ShipmentTable = ({ shipments, onShipmentSelect, selectedShipment, carriers
             </tr>
           </thead>
           <tbody>
-            {sortedShipments.length > 0 ? (
-              sortedShipments.map((shipment, index) => (
+            {currentItems.length > 0 ? (
+              currentItems.map((shipment, index) => (
                 <tr 
                   key={shipment.shipment_id} 
                   className={getRowClass(shipment, index)}
@@ -189,6 +220,50 @@ const ShipmentTable = ({ shipments, onShipmentSelect, selectedShipment, carriers
           </tbody>
         </table>
       </div>
+      
+      {/* Pagination controls */}
+      {totalPages > 1 && (
+        <div className="pagination-controls">
+          <button
+            className="pagination-button"
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          
+          <div className="page-numbers">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              // Logic to show relevant page numbers around current page
+              const pageNum = totalPages <= 5 
+                ? i + 1
+                : currentPage <= 3
+                  ? i + 1
+                  : currentPage >= totalPages - 2
+                    ? totalPages - 4 + i
+                    : currentPage - 2 + i;
+              
+              return (
+                <button
+                  key={pageNum}
+                  className={`page-number ${currentPage === pageNum ? 'active' : ''}`}
+                  onClick={() => setCurrentPage(pageNum)}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+          
+          <button
+            className="pagination-button"
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,7 +1,7 @@
 // components/shipment/CarrierManagementModal.jsx
 import React, { useState, useEffect } from 'react';
 
-const CarrierManagementModal = ({ onClose, onSave, carriers, refreshCarriers }) => {
+const CarrierManagementModal = ({ onClose, carriers, employees, refreshCarriers }) => {
   const [selectedCarrier, setSelectedCarrier] = useState(null);
   const [formData, setFormData] = useState({
     carrier_name: '',
@@ -24,7 +24,7 @@ const CarrierManagementModal = ({ onClose, onSave, carriers, refreshCarriers }) 
     setSelectedCarrier(null);
     setIsEditing(true);
     setFormData({
-      carrier_name: '',
+      carrier_name: employees.length > 0 ? employees[0].employee_id : '',
       service_type: 'Standard',
       carrier_count: 0
     });
@@ -54,7 +54,7 @@ const CarrierManagementModal = ({ onClose, onSave, carriers, refreshCarriers }) 
     } else {
       // Reset form data to empty
       setFormData({
-        carrier_name: '',
+        carrier_name: employees.length > 0 ? employees[0].employee_id : '',
         service_type: 'Standard',
         carrier_count: 0
       });
@@ -65,8 +65,8 @@ const CarrierManagementModal = ({ onClose, onSave, carriers, refreshCarriers }) 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.carrier_name.trim()) {
-      alert("Carrier name is required");
+    if (!formData.carrier_name) {
+      alert("Employee selection is required");
       return;
     }
     
@@ -106,7 +106,7 @@ const CarrierManagementModal = ({ onClose, onSave, carriers, refreshCarriers }) 
       setIsEditing(false);
       setSelectedCarrier(null);
       setFormData({
-        carrier_name: '',
+        carrier_name: employees.length > 0 ? employees[0].employee_id : '',
         service_type: 'Standard',
         carrier_count: 0
       });
@@ -114,6 +114,12 @@ const CarrierManagementModal = ({ onClose, onSave, carriers, refreshCarriers }) 
     } catch (err) {
       alert(`Error: ${err.message}`);
     }
+  };
+  
+  // Helper function to get employee full name
+  const getEmployeeFullName = (employeeId) => {
+    const employee = employees.find(emp => emp.employee_id === employeeId);
+    return employee ? employee.full_name : employeeId;
   };
   
   return (
@@ -141,7 +147,7 @@ const CarrierManagementModal = ({ onClose, onSave, carriers, refreshCarriers }) 
               <table className="shipment-table">
                 <thead>
                   <tr>
-                    <th>Carrier Name</th>
+                    <th>Carrier Employee</th>
                     <th>Service Type</th>
                     <th>Count</th>
                     <th>Actions</th>
@@ -154,7 +160,7 @@ const CarrierManagementModal = ({ onClose, onSave, carriers, refreshCarriers }) 
                         key={carrier.carrier_id} 
                         className={index % 2 === 0 ? 'even-row' : 'odd-row'}
                       >
-                        <td>{carrier.carrier_name}</td>
+                        <td>{getEmployeeFullName(carrier.carrier_name)}</td>
                         <td>{carrier.service_type || 'Standard'}</td>
                         <td>{carrier.carrier_count || 0}</td>
                         <td>
@@ -186,15 +192,21 @@ const CarrierManagementModal = ({ onClose, onSave, carriers, refreshCarriers }) 
               <h4>{selectedCarrier ? 'Edit Carrier' : 'Add New Carrier'}</h4>
               <form onSubmit={handleSubmit}>
                 <div className="form-row">
-                  <label className="form-label">Carrier Name:</label>
-                  <input
-                    type="text"
-                    className="form-input"
+                  <label className="form-label">Employee:</label>
+                  <select
+                    className="form-select"
                     name="carrier_name"
                     value={formData.carrier_name}
                     onChange={handleInputChange}
                     required
-                  />
+                  >
+                    <option value="">Select an employee</option>
+                    {employees.map(employee => (
+                      <option key={employee.employee_id} value={employee.employee_id}>
+                        {employee.full_name} ({employee.employee_id})
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 
                 <div className="form-row">

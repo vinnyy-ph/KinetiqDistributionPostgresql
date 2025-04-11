@@ -13,6 +13,9 @@ const EditPickingModal = ({
   const [selectedWarehouse, setSelectedWarehouse] = useState('');
   const [modified, setModified] = useState(false);
   
+  // Check if picking list is completed
+  const isCompleted = pickingList?.picked_status === 'Completed';
+  
   // Set initial values when picking list changes
   useEffect(() => {
     if (pickingList) {
@@ -36,6 +39,11 @@ const EditPickingModal = ({
   
   // Handle save button click
   const handleSave = () => {
+    // Don't allow saving if completed
+    if (isCompleted) {
+      return;
+    }
+    
     const updates = {};
     
     if (selectedEmployee !== pickingList.picked_by) {
@@ -91,9 +99,16 @@ const EditPickingModal = ({
     <div className="modal-overlay" onClick={onClose}>
       <div className="edit-picking-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Edit Picking List</h3>
+          <h3>{isCompleted ? 'View Picking List' : 'Edit Picking List'}</h3>
           <button className="close-button" onClick={onClose}>×</button>
         </div>
+        
+        {isCompleted && (
+          <div className="completed-notification">
+            <span className="info-icon">ℹ</span>
+            This picking list is completed and cannot be modified.
+          </div>
+        )}
         
         <div className="modal-body">
           <div className="picking-details">
@@ -130,31 +145,42 @@ const EditPickingModal = ({
           
           <div className="edit-section">
             <h4>Assign Employee</h4>
-            <div className="employee-selection">
-              <select 
-                className="employee-dropdown"
-                value={selectedEmployee}
-                onChange={handleEmployeeChange}
-              >
-                <option value="">Select an employee...</option>
-                {employees.map(employee => (
-                  <option key={employee.employee_id} value={employee.employee_id}>
-                    {employee.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {isCompleted ? (
+              <div className="employee-display">
+                <span className="employee-value">
+                  {employees.find(emp => emp.employee_id === pickingList.picked_by)?.full_name || 'Not assigned'}
+                </span>
+              </div>
+            ) : (
+              <div className="employee-selection">
+                <select 
+                  className="employee-dropdown"
+                  value={selectedEmployee}
+                  onChange={handleEmployeeChange}
+                  disabled={isCompleted}
+                >
+                  <option value="">Select an employee...</option>
+                  {employees.map(employee => (
+                    <option key={employee.employee_id} value={employee.employee_id}>
+                      {employee.full_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
           
-          {/* Warehouse selection section - Only shown for external orders */}
-          {pickingList.is_external && (
-            <div className="edit-section">
-              <h4>Update Warehouse</h4>
+          {/* Warehouse section - Different display based on picking list type and completion status */}
+          <div className="edit-section">
+            <h4>Warehouse</h4>
+            
+            {pickingList.is_external && !isCompleted ? (
               <div className="warehouse-selection">
                 <select 
                   className="warehouse-dropdown"
                   value={selectedWarehouse}
                   onChange={handleWarehouseChange}
+                  disabled={isCompleted}
                 >
                   <option value="">Select a warehouse...</option>
                   {warehouses.map(warehouse => (
@@ -164,39 +190,33 @@ const EditPickingModal = ({
                   ))}
                 </select>
               </div>
-            </div>
-          )}
-          
-          {/* For internal orders, just display the warehouse name */}
-          {!pickingList.is_external && (
-            <div className="edit-section">
-              <h4>Warehouse</h4>
+            ) : (
               <div className="warehouse-display">
                 <div className="warehouse-info">
                   <span className="warehouse-value">{pickingList.warehouse_name || 'Not assigned'}</span>
-                  <div className="warehouse-note">
-                    <small>Warehouse for internal deliveries is automatically assigned and cannot be modified.</small>
-                  </div>
+                  {!pickingList.is_external && (
+                    <div className="warehouse-note">
+                      <small>Warehouse for internal deliveries is automatically assigned and cannot be modified.</small>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
           
           <div className="edit-section">
-            <h4>Update Status</h4>
+            <h4>Status</h4>
             <div className="status-action">
-              {pickingList.picked_status !== 'Completed' && (
+              {!isCompleted ? (
                 <button 
                   className={`status-update-button status-${getNextStatus(pickingList.picked_status)?.toLowerCase().replace(' ', '-')}`}
                   onClick={() => onStatusUpdate(pickingList, getNextStatus(pickingList.picked_status))}
                 >
                   {getStatusActionLabel(pickingList.picked_status)}
                 </button>
-              )}
-              
-              {pickingList.picked_status === 'Completed' && (
+              ) : (
                 <div className="completed-message">
-                  This picking list is already completed.
+                  This picking list was completed on {formatDate(pickingList.picked_date)}.
                 </div>
               )}
             </div>
@@ -205,15 +225,17 @@ const EditPickingModal = ({
         
         <div className="modal-footer">
           <button className="cancel-button" onClick={onClose}>
-            Cancel
+            {isCompleted ? 'Close' : 'Cancel'}
           </button>
-          <button 
-            className="save-button" 
-            onClick={handleSave}
-            disabled={!modified}
-          >
-            Save Changes
-          </button>
+          {!isCompleted && (
+            <button 
+              className="save-button" 
+              onClick={handleSave}
+              disabled={!modified || isCompleted}
+            >
+              Save Changes
+            </button>
+          )}
         </div>
       </div>
     </div>

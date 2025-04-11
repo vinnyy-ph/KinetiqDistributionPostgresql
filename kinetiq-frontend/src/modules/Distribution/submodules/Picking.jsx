@@ -31,7 +31,7 @@ const Picking = () => {
     const fetchPickingLists = async () => {
       try {
         setLoading(true);
-        setError(null); // Reset error state
+        setError(null);
         const response = await fetch('http://127.0.0.1:8000/api/picking-lists/');
         
         if (!response.ok) {
@@ -45,18 +45,6 @@ const Picking = () => {
         
         const data = await response.json();
         setPickingLists(data);
-        
-        // Extract unique warehouses for filtering
-        const uniqueWarehouses = [...new Set(data
-          .filter(list => list.warehouse_name)
-          .map(list => ({ 
-            id: list.warehouse_id, 
-            name: list.warehouse_name 
-          }))
-          .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
-        )];
-        
-        setWarehouses(uniqueWarehouses);
         setLoading(false);
       } catch (err) {
         setError(err.message);
@@ -64,7 +52,7 @@ const Picking = () => {
         console.error('Error fetching picking lists:', err);
       }
     };
-
+  
     const fetchEmployees = async () => {
       try {
         const response = await fetch('http://127.0.0.1:8000/api/employees/');
@@ -80,7 +68,7 @@ const Picking = () => {
         console.error('Error fetching employees:', err);
       }
     };
-
+  
     const fetchWarehouses = async () => {
       try {
         const response = await fetch('http://127.0.0.1:8000/api/warehouses/');
@@ -91,14 +79,18 @@ const Picking = () => {
         }
         
         const data = await response.json();
+        console.log('Fetched warehouses from API:', data); // Debug line
         setWarehouses(data);
       } catch (err) {
         console.error('Error fetching warehouses:', err);
       }
     };
-
+  
+    // First fetch the picking lists and employees
     fetchPickingLists();
     fetchEmployees();
+    
+    // Then fetch warehouses separately (and don't derive from picking lists)
     fetchWarehouses();
   }, [refreshTrigger]);
   
