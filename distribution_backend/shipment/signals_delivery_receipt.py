@@ -5,12 +5,14 @@ from shipment.models import DeliveryReceipt, ShipmentDetails
 import traceback
 from datetime import date
 from decimal import Decimal
+from django.utils import timezone
+import datetime
 
 @receiver(post_save, sender=DeliveryReceipt)
 def handle_rejected_delivery_receipt(sender, instance, **kwargs):
     """
     When a DeliveryReceipt's status is set to 'Rejected':
-    For sales orders, update shipping_details.delivery_status to 'Returned'
+    For sales orders, update delivery_note.shipment_status to 'Returned'
     The shipment_status remains unchanged since the shipment itself was successful
     """
     try:
@@ -35,13 +37,13 @@ def handle_rejected_delivery_receipt(sender, instance, **kwargs):
                     if result and result[0]:
                         sales_order_id = result[0]
                         
-                        # Update the sales.shipping_details delivery_status to 'Returned'
+                        # Update the sales.delivery_note shipment_status to 'Returned'
                         cursor.execute("""
-                            UPDATE sales.shipping_details
-                            SET delivery_status = 'Returned'::delivery_status_enum
+                            UPDATE sales.delivery_note
+                            SET shipment_status = 'Returned'
                             WHERE order_id = %s
                         """, [sales_order_id])
-                        print(f"Updated sales.shipping_details delivery_status to 'Returned' for order {sales_order_id}")
+                        print(f"Updated sales.delivery_note shipment_status to 'Returned' for order {sales_order_id}")
     except Exception as e:
         print(f"Error handling rejected delivery receipt: {str(e)}")
         traceback.print_exc()
@@ -283,17 +285,18 @@ def handle_delivery_receipt_update(sender, instance, **kwargs):
                                         SET actual_arrival_date = %s,
                                             shipment_status = 'Delivered'
                                         WHERE shipment_id = %s
-                                    """, [date.today(), instance.shipment_id])
-                                    print(f"Updated shipment {instance.shipment_id} with actual_arrival_date: {date.today()} and status: Delivered")
+                                    """, [timezone.now(), instance.shipment_id])
+                                    print(f"Updated shipment {instance.shipment_id} with actual_arrival_date: {timezone.now()} and status: Delivered")
                                     
                                     # If this is a sales order delivery, also update the sales.shipping_details delivery_status
                                     if sales_order_id:
                                         cursor.execute("""
-                                            UPDATE sales.shipping_details
-                                            SET delivery_status = 'Delivered'::delivery_status_enum
+                                            UPDATE sales.delivery_note
+                                            SET shipment_status = 'Delivered', 
+                                                actual_delivery_date = %s
                                             WHERE order_id = %s
-                                        """, [sales_order_id])
-                                        print(f"Updated sales.shipping_details delivery_status to 'Delivered' for order {sales_order_id}")
+                                        """, [timezone.now(), sales_order_id])
+                                        print(f"Updated sales.delivery_note shipment_status to 'Delivered' for order {sales_order_id}")
     except Exception as e:
         print(f"Error handling delivery receipt update: {str(e)}")
         traceback.print_exc()
